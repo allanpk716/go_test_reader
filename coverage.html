@@ -1,0 +1,1734 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>parser: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/allanpk716/go_test_reader/internal/parser/encoding.go (0.0%)</option>
+				
+				<option value="file1">github.com/allanpk716/go_test_reader/internal/parser/parser.go (89.0%)</option>
+				
+				<option value="file2">github.com/allanpk716/go_test_reader/internal/server/server.go (93.5%)</option>
+				
+				<option value="file3">github.com/allanpk716/go_test_reader/internal/task/manager.go (74.6%)</option>
+				
+				<option value="file4">github.com/allanpk716/go_test_reader/internal/testutil/mock_server.go (0.0%)</option>
+				
+				<option value="file5">github.com/allanpk716/go_test_reader/internal/testutil/testutil.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package parser
+
+import (
+        "bytes"
+        "io"
+        "unicode/utf16"
+        "unicode/utf8"
+)
+
+// DetectAndConvertEncoding 检测并转换文件编码
+func DetectAndConvertEncoding(reader io.Reader) (io.Reader, error) <span class="cov0" title="0">{
+        // 读取前几个字节来检测编码
+        buf := make([]byte, 1024)
+        n, err := reader.Read(buf)
+        if err != nil &amp;&amp; err != io.EOF </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        // 检测是否为UTF-16 LE (Little Endian)
+        <span class="cov0" title="0">if n &gt;= 2 &amp;&amp; buf[0] == 0xFF &amp;&amp; buf[1] == 0xFE </span><span class="cov0" title="0">{
+                // UTF-16 LE BOM detected
+                return convertUTF16LEToUTF8(reader, buf[2:n])
+        }</span>
+
+        // 检测是否为UTF-16 BE (Big Endian)
+        <span class="cov0" title="0">if n &gt;= 2 &amp;&amp; buf[0] == 0xFE &amp;&amp; buf[1] == 0xFF </span><span class="cov0" title="0">{
+                // UTF-16 BE BOM detected
+                return convertUTF16BEToUTF8(reader, buf[2:n])
+        }</span>
+
+        // 检测是否为UTF-16 LE (无BOM，通过模式检测)
+        <span class="cov0" title="0">if isUTF16LE(buf[:n]) </span><span class="cov0" title="0">{
+                return convertUTF16LEToUTF8(reader, buf[:n])
+        }</span>
+
+        // 检测是否为UTF-16 BE (无BOM，通过模式检测)
+        <span class="cov0" title="0">if isUTF16BE(buf[:n]) </span><span class="cov0" title="0">{
+                return convertUTF16BEToUTF8(reader, buf[:n])
+        }</span>
+
+        // 默认为UTF-8，创建一个新的reader包含已读取的数据
+        <span class="cov0" title="0">return io.MultiReader(bytes.NewReader(buf[:n]), reader), nil</span>
+}
+
+// isUTF16LE 检测是否为UTF-16 LE编码（无BOM）
+func isUTF16LE(data []byte) bool <span class="cov0" title="0">{
+        if len(data) &lt; 4 </span><span class="cov0" title="0">{
+                return false
+        }</span>
+
+        // 检查是否有典型的UTF-16 LE模式：每隔一个字节为0
+        <span class="cov0" title="0">nullCount := 0
+        for i := 1; i &lt; len(data) &amp;&amp; i &lt; 100; i += 2 </span><span class="cov0" title="0">{
+                if data[i] == 0 </span><span class="cov0" title="0">{
+                        nullCount++
+                }</span>
+        }
+
+        // 如果超过50%的奇数位置是0，可能是UTF-16 LE
+        <span class="cov0" title="0">return nullCount &gt; (len(data)/4)</span>
+}
+
+// isUTF16BE 检测是否为UTF-16 BE编码（无BOM）
+func isUTF16BE(data []byte) bool <span class="cov0" title="0">{
+        if len(data) &lt; 4 </span><span class="cov0" title="0">{
+                return false
+        }</span>
+
+        // 检查是否有典型的UTF-16 BE模式：每隔一个字节为0
+        <span class="cov0" title="0">nullCount := 0
+        for i := 0; i &lt; len(data) &amp;&amp; i &lt; 100; i += 2 </span><span class="cov0" title="0">{
+                if data[i] == 0 </span><span class="cov0" title="0">{
+                        nullCount++
+                }</span>
+        }
+
+        // 如果超过50%的偶数位置是0，可能是UTF-16 BE
+        <span class="cov0" title="0">return nullCount &gt; (len(data)/4)</span>
+}
+
+// convertUTF16LEToUTF8 将UTF-16 LE转换为UTF-8
+func convertUTF16LEToUTF8(reader io.Reader, initialData []byte) (io.Reader, error) <span class="cov0" title="0">{
+        // 读取所有数据
+        allData := initialData
+        restData, err := io.ReadAll(reader)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">allData = append(allData, restData...)
+
+        // 确保数据长度为偶数
+        if len(allData)%2 != 0 </span><span class="cov0" title="0">{
+                allData = allData[:len(allData)-1]
+        }</span>
+
+        // 转换为uint16切片
+        <span class="cov0" title="0">uint16Data := make([]uint16, len(allData)/2)
+        for i := 0; i &lt; len(uint16Data); i++ </span><span class="cov0" title="0">{
+                uint16Data[i] = uint16(allData[i*2]) | uint16(allData[i*2+1])&lt;&lt;8
+        }</span>
+
+        // 转换为UTF-8
+        <span class="cov0" title="0">utf8Data := utf16.Decode(uint16Data)
+        utf8Bytes := make([]byte, 0, len(utf8Data)*4)
+        for _, r := range utf8Data </span><span class="cov0" title="0">{
+                if utf8.ValidRune(r) </span><span class="cov0" title="0">{
+                        buf := make([]byte, 4)
+                        n := utf8.EncodeRune(buf, r)
+                        utf8Bytes = append(utf8Bytes, buf[:n]...)
+                }</span>
+        }
+
+        <span class="cov0" title="0">return bytes.NewReader(utf8Bytes), nil</span>
+}
+
+// convertUTF16BEToUTF8 将UTF-16 BE转换为UTF-8
+func convertUTF16BEToUTF8(reader io.Reader, initialData []byte) (io.Reader, error) <span class="cov0" title="0">{
+        // 读取所有数据
+        allData := initialData
+        restData, err := io.ReadAll(reader)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">allData = append(allData, restData...)
+
+        // 确保数据长度为偶数
+        if len(allData)%2 != 0 </span><span class="cov0" title="0">{
+                allData = allData[:len(allData)-1]
+        }</span>
+
+        // 转换为uint16切片（大端序）
+        <span class="cov0" title="0">uint16Data := make([]uint16, len(allData)/2)
+        for i := 0; i &lt; len(uint16Data); i++ </span><span class="cov0" title="0">{
+                uint16Data[i] = uint16(allData[i*2])&lt;&lt;8 | uint16(allData[i*2+1])
+        }</span>
+
+        // 转换为UTF-8
+        <span class="cov0" title="0">utf8Data := utf16.Decode(uint16Data)
+        utf8Bytes := make([]byte, 0, len(utf8Data)*4)
+        for _, r := range utf8Data </span><span class="cov0" title="0">{
+                if utf8.ValidRune(r) </span><span class="cov0" title="0">{
+                        buf := make([]byte, 4)
+                        n := utf8.EncodeRune(buf, r)
+                        utf8Bytes = append(utf8Bytes, buf[:n]...)
+                }</span>
+        }
+
+        <span class="cov0" title="0">return bytes.NewReader(utf8Bytes), nil</span>
+}
+
+// ParseTestLogWithEncoding 解析测试日志，自动处理编码
+func ParseTestLogWithEncoding(reader io.Reader) (*TestResult, error) <span class="cov0" title="0">{
+        // 检测并转换编码
+        convertedReader, err := DetectAndConvertEncoding(reader)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        // 使用转换后的reader解析
+        <span class="cov0" title="0">return ParseTestLog(convertedReader)</span>
+}
+
+// ValidateTestLogWithEncoding 验证测试日志，自动处理编码
+func ValidateTestLogWithEncoding(reader io.Reader) error <span class="cov0" title="0">{
+        // 检测并转换编码
+        convertedReader, err := DetectAndConvertEncoding(reader)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // 使用转换后的reader验证
+        <span class="cov0" title="0">return ValidateTestLog(convertedReader)</span>
+}</pre>
+		
+		<pre class="file" id="file1" style="display: none">package parser
+
+import (
+        "bufio"
+        "encoding/json"
+        "fmt"
+        "io"
+        "strings"
+        "time"
+)
+
+// TestEvent go test -json 输出的事件结构
+type TestEvent struct {
+        Time    time.Time `json:"Time"`
+        Action  string    `json:"Action"`
+        Package string    `json:"Package"`
+        Test    string    `json:"Test"`
+        Output  string    `json:"Output"`
+        Elapsed float64   `json:"Elapsed"`
+}
+
+// TestDetail 测试详细信息
+type TestDetail struct {
+        Status  string  `json:"status"`
+        Output  string  `json:"output"`
+        Error   string  `json:"error"`
+        Elapsed float64 `json:"elapsed"`
+}
+
+// TestResult 测试结果汇总
+type TestResult struct {
+        TotalTests       int                    `json:"total_tests"`
+        PassedTests      int                    `json:"passed_tests"`
+        FailedTests      int                    `json:"failed_tests"`
+        SkippedTests     int                    `json:"skipped_tests"`
+        FailedTestNames  []string               `json:"failed_test_names"`
+        PassedTestNames  []string               `json:"passed_test_names"`
+        SkippedTestNames []string               `json:"skipped_test_names"`
+        TestDetails      map[string]*TestDetail `json:"test_details"`
+        Packages         []string               `json:"packages"`
+}
+
+// ParseTestLog 解析 go test -json 输出
+func ParseTestLog(reader io.Reader) (*TestResult, error) <span class="cov8" title="1">{
+        result := &amp;TestResult{
+                FailedTestNames:  make([]string, 0),
+                PassedTestNames:  make([]string, 0),
+                SkippedTestNames: make([]string, 0),
+                TestDetails:      make(map[string]*TestDetail),
+                Packages:         make([]string, 0),
+        }
+        
+        packageSet := make(map[string]bool)
+        testOutputs := make(map[string][]string)
+        
+        scanner := bufio.NewScanner(reader)
+        for scanner.Scan() </span><span class="cov8" title="1">{
+                line := strings.TrimSpace(scanner.Text())
+                if line == "" </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                
+                <span class="cov8" title="1">var event TestEvent
+                if err := json.Unmarshal([]byte(line), &amp;event); err != nil </span><span class="cov8" title="1">{
+                        // 跳过无法解析的行，可能是非JSON输出
+                        continue</span>
+                }
+                
+                // 记录包信息
+                <span class="cov8" title="1">if event.Package != "" &amp;&amp; !packageSet[event.Package] </span><span class="cov8" title="1">{
+                        packageSet[event.Package] = true
+                        result.Packages = append(result.Packages, event.Package)
+                }</span>
+                
+                // 处理测试事件
+                <span class="cov8" title="1">if event.Test != "" </span><span class="cov8" title="1">{
+                        switch event.Action </span>{
+                        case "run":<span class="cov8" title="1">
+                                // 测试开始运行
+                                if _, exists := result.TestDetails[event.Test]; !exists </span><span class="cov8" title="1">{
+                                        result.TestDetails[event.Test] = &amp;TestDetail{
+                                                Status: "running",
+                                                Output: "",
+                                        }
+                                }</span>
+                                
+                        case "output":<span class="cov8" title="1">
+                                // 收集测试输出
+                                if event.Output != "" </span><span class="cov8" title="1">{
+                                        testOutputs[event.Test] = append(testOutputs[event.Test], event.Output)
+                                }</span>
+                                
+                        case "pass":<span class="cov8" title="1">
+                                // 测试通过
+                                result.PassedTests++
+                                result.PassedTestNames = append(result.PassedTestNames, event.Test)
+                                
+                                if detail, exists := result.TestDetails[event.Test]; exists </span><span class="cov8" title="1">{
+                                        detail.Status = "pass"
+                                        detail.Elapsed = event.Elapsed
+                                        detail.Output = strings.Join(testOutputs[event.Test], "")
+                                }</span> else<span class="cov0" title="0"> {
+                                        result.TestDetails[event.Test] = &amp;TestDetail{
+                                                Status:  "pass",
+                                                Elapsed: event.Elapsed,
+                                                Output:  strings.Join(testOutputs[event.Test], ""),
+                                        }
+                                }</span>
+                                
+                        case "fail":<span class="cov8" title="1">
+                                // 测试失败
+                                result.FailedTests++
+                                result.FailedTestNames = append(result.FailedTestNames, event.Test)
+                                
+                                output := strings.Join(testOutputs[event.Test], "")
+                                errorMsg := extractErrorFromOutput(output)
+                                
+                                if detail, exists := result.TestDetails[event.Test]; exists </span><span class="cov8" title="1">{
+                                        detail.Status = "fail"
+                                        detail.Elapsed = event.Elapsed
+                                        detail.Output = output
+                                        detail.Error = errorMsg
+                                }</span> else<span class="cov0" title="0"> {
+                                        result.TestDetails[event.Test] = &amp;TestDetail{
+                                                Status:  "fail",
+                                                Elapsed: event.Elapsed,
+                                                Output:  output,
+                                                Error:   errorMsg,
+                                        }
+                                }</span>
+                                
+                        case "skip":<span class="cov8" title="1">
+                                // 测试跳过
+                                result.SkippedTests++
+                                result.SkippedTestNames = append(result.SkippedTestNames, event.Test)
+                                
+                                if detail, exists := result.TestDetails[event.Test]; exists </span><span class="cov8" title="1">{
+                                        detail.Status = "skip"
+                                        detail.Elapsed = event.Elapsed
+                                        detail.Output = strings.Join(testOutputs[event.Test], "")
+                                }</span> else<span class="cov0" title="0"> {
+                                        result.TestDetails[event.Test] = &amp;TestDetail{
+                                                Status:  "skip",
+                                                Elapsed: event.Elapsed,
+                                                Output:  strings.Join(testOutputs[event.Test], ""),
+                                        }
+                                }</span>
+                        }
+                }
+        }
+        
+        <span class="cov8" title="1">if err := scanner.Err(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("error reading test log: %w", err)
+        }</span>
+        
+        // 计算总测试数
+        <span class="cov8" title="1">result.TotalTests = result.PassedTests + result.FailedTests + result.SkippedTests
+        
+        return result, nil</span>
+}
+
+// extractErrorFromOutput 从测试输出中提取错误信息
+func extractErrorFromOutput(output string) string <span class="cov8" title="1">{
+        lines := strings.Split(output, "\n")
+        errorLines := make([]string, 0)
+        
+        for _, line := range lines </span><span class="cov8" title="1">{
+                trimmed := strings.TrimSpace(line)
+                
+                // 查找常见的错误模式
+                if strings.Contains(trimmed, "FAIL:") ||
+                        strings.Contains(trimmed, "Error:") ||
+                        strings.Contains(trimmed, "panic:") ||
+                        strings.Contains(trimmed, "expected") ||
+                        strings.Contains(trimmed, "actual") ||
+                        strings.Contains(trimmed, "got") ||
+                        strings.Contains(trimmed, "want") </span><span class="cov8" title="1">{
+                        errorLines = append(errorLines, trimmed)
+                }</span>
+        }
+        
+        <span class="cov8" title="1">if len(errorLines) &gt; 0 </span><span class="cov8" title="1">{
+                return strings.Join(errorLines, "\n")
+        }</span>
+        
+        // 如果没有找到特定的错误模式，返回整个输出的前几行
+        <span class="cov8" title="1">if len(lines) &gt; 0 </span><span class="cov8" title="1">{
+                maxLines := 5
+                if len(lines) &lt; maxLines </span><span class="cov8" title="1">{
+                        maxLines = len(lines)
+                }</span>
+                <span class="cov8" title="1">return strings.Join(lines[:maxLines], "\n")</span>
+        }
+        
+        <span class="cov0" title="0">return "No error details available"</span>
+}
+
+// ValidateTestLog 验证测试日志格式
+func ValidateTestLog(reader io.Reader) error <span class="cov8" title="1">{
+        scanner := bufio.NewScanner(reader)
+        lineCount := 0
+        validLines := 0
+        
+        for scanner.Scan() </span><span class="cov8" title="1">{
+                lineCount++
+                line := strings.TrimSpace(scanner.Text())
+                if line == "" </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                
+                <span class="cov8" title="1">var event TestEvent
+                if err := json.Unmarshal([]byte(line), &amp;event); err == nil </span><span class="cov8" title="1">{
+                        validLines++
+                }</span>
+                
+                // 只检查前100行来判断格式
+                <span class="cov8" title="1">if lineCount &gt;= 100 </span><span class="cov0" title="0">{
+                        break</span>
+                }
+        }
+        
+        <span class="cov8" title="1">if err := scanner.Err(); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error reading file: %w", err)
+        }</span>
+        
+        <span class="cov8" title="1">if lineCount == 0 </span><span class="cov8" title="1">{
+                return fmt.Errorf("file is empty")
+        }</span>
+        
+        // 如果有效JSON行少于总行数的50%，可能不是正确的格式
+        <span class="cov8" title="1">if validLines &lt; lineCount/2 </span><span class="cov8" title="1">{
+                return fmt.Errorf("file does not appear to be go test -json output (valid JSON lines: %d/%d)", validLines, lineCount)
+        }</span>
+        
+        <span class="cov8" title="1">return nil</span>
+}</pre>
+		
+		<pre class="file" id="file2" style="display: none">package server
+
+import (
+        "context"
+        "fmt"
+        "os"
+        "sync"
+
+        "github.com/google/uuid"
+        "github.com/modelcontextprotocol/go-sdk/mcp"
+        "github.com/allanpk716/go_test_reader/internal/parser"
+        "github.com/allanpk716/go_test_reader/internal/task"
+)
+
+// MCPServer MCP 服务器实例
+type MCPServer struct {
+        server      *mcp.Server
+        taskManager *task.Manager
+        mu          sync.RWMutex
+}
+
+// UploadRequest 上传请求参数
+type UploadRequest struct {
+        FilePath string `json:"file_path"`
+}
+
+// UploadResponse 上传响应
+type UploadResponse struct {
+        TaskID  string `json:"task_id"`
+        Status  string `json:"status"`
+        Message string `json:"message"`
+}
+
+// QueryRequest 查询请求参数
+type QueryRequest struct {
+        TaskID string `json:"task_id"`
+}
+
+// TerminateRequest 终止请求参数
+type TerminateRequest struct {
+        TaskID string `json:"task_id"`
+}
+
+// TerminateResponse 终止响应
+type TerminateResponse struct {
+        TaskID  string `json:"task_id"`
+        Status  string `json:"status"`
+        Message string `json:"message"`
+}
+
+// TestDetailsRequest 测试详情请求参数
+type TestDetailsRequest struct {
+        TaskID   string `json:"task_id"`
+        TestName string `json:"test_name"`
+}
+
+// NewMCPServer 创建新的 MCP 服务器
+func NewMCPServer() (*MCPServer, error) <span class="cov8" title="1">{
+        // 创建任务管理器
+        taskManager := task.NewManager()
+        
+        // 创建 MCP 服务器
+        server := mcp.NewServer("go-test-reader", "1.0.0", nil)
+        
+        mcpServer := &amp;MCPServer{
+                server:      server,
+                taskManager: taskManager,
+        }
+        
+        // 注册工具
+        mcpServer.registerTools()
+        
+        return mcpServer, nil
+}</span>
+
+// Run 启动服务器
+func (s *MCPServer) Run(ctx context.Context) error <span class="cov0" title="0">{
+        transport := mcp.NewStdioTransport()
+        return s.server.Run(ctx, transport)
+}</span>
+
+// registerTools 注册 MCP 工具
+func (s *MCPServer) registerTools() <span class="cov8" title="1">{
+        // 注册文件上传工具
+        uploadTool := mcp.NewServerTool(
+                "upload_test_log",
+                "上传 go test -json 输出的测试日志文件进行分析",
+                s.handleUploadTestLog,
+        )
+        
+        // 注册查询结果工具
+        queryTool := mcp.NewServerTool(
+                "get_analysis_result",
+                "根据任务ID获取分析结果",
+                s.handleGetAnalysisResult,
+        )
+        
+        // 注册任务终止工具
+        terminateTool := mcp.NewServerTool(
+                "terminate_task",
+                "终止指定的分析任务",
+                s.handleTerminateTask,
+        )
+        
+        // 注册测试详情查询工具
+        detailsTool := mcp.NewServerTool(
+                "get_test_details",
+                "根据任务ID和测试名称获取详细错误信息",
+                s.handleGetTestDetails,
+        )
+        
+        // 添加工具到服务器
+        s.server.AddTools(uploadTool, queryTool, terminateTool, detailsTool)
+}</span>
+
+// handleUploadTestLog 处理文件上传
+func (s *MCPServer) handleUploadTestLog(ctx context.Context, session *mcp.ServerSession, params *mcp.CallToolParamsFor[UploadRequest]) (*mcp.CallToolResultFor[UploadResponse], error) <span class="cov8" title="1">{
+        filePath := params.Arguments.FilePath
+        if filePath == "" </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("file_path parameter is required")
+        }</span>
+        
+        // 生成任务ID
+        <span class="cov8" title="1">taskID := uuid.New().String()
+        
+        // 创建并启动分析任务
+        task := s.taskManager.CreateTask(taskID, filePath)
+        go s.processTestLog(ctx, task)
+        
+        response := UploadResponse{
+                TaskID:  taskID,
+                Status:  "started",
+                Message: "测试日志分析任务已启动",
+        }
+        
+        return &amp;mcp.CallToolResultFor[UploadResponse]{
+                Content: []mcp.Content{
+                        &amp;mcp.TextContent{
+                                Text: fmt.Sprintf("任务已创建，ID: %s", taskID),
+                        },
+                },
+                Meta: mcp.Meta{
+                        "task_id": response.TaskID,
+                        "status":  response.Status,
+                        "message": response.Message,
+                },
+        }, nil</span>
+}
+
+// processTestLog 处理测试日志文件
+func (s *MCPServer) processTestLog(ctx context.Context, task *task.Task) <span class="cov8" title="1">{
+        defer func() </span><span class="cov8" title="1">{
+                if r := recover(); r != nil </span><span class="cov0" title="0">{
+                        task.SetError(fmt.Errorf("panic: %v", r))
+                }</span>
+        }()
+        
+        // 打开文件
+        <span class="cov8" title="1">file, err := os.Open(task.FilePath)
+        if err != nil </span><span class="cov8" title="1">{
+                task.SetError(fmt.Errorf("failed to open file: %w", err))
+                return
+        }</span>
+        <span class="cov8" title="1">defer file.Close()
+        
+        // 解析测试日志
+        result, err := parser.ParseTestLog(file)
+        if err != nil </span><span class="cov8" title="1">{
+                task.SetError(fmt.Errorf("failed to parse test log: %w", err))
+                return
+        }</span>
+        
+        // 设置结果
+        <span class="cov8" title="1">task.SetResult(result)</span>
+}
+
+// handleGetAnalysisResult 获取分析结果
+func (s *MCPServer) handleGetAnalysisResult(ctx context.Context, session *mcp.ServerSession, params *mcp.CallToolParamsFor[QueryRequest]) (*mcp.CallToolResultFor[map[string]interface{}], error) <span class="cov8" title="1">{
+        taskID := params.Arguments.TaskID
+        if taskID == "" </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("task_id parameter is required")
+        }</span>
+        
+        <span class="cov8" title="1">task := s.taskManager.GetTask(taskID)
+        if task == nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("task not found: %s", taskID)
+        }</span>
+        
+        <span class="cov8" title="1">status := task.GetStatus()
+        
+        return &amp;mcp.CallToolResultFor[map[string]interface{}]{
+                Content: []mcp.Content{
+                        &amp;mcp.TextContent{
+                                Text: fmt.Sprintf("任务 %s 状态: %s", taskID, status["status"]),
+                        },
+                },
+                Meta: mcp.Meta(status),
+        }, nil</span>
+}
+
+// handleTerminateTask 终止任务
+func (s *MCPServer) handleTerminateTask(ctx context.Context, session *mcp.ServerSession, params *mcp.CallToolParamsFor[TerminateRequest]) (*mcp.CallToolResultFor[TerminateResponse], error) <span class="cov8" title="1">{
+        taskID := params.Arguments.TaskID
+        if taskID == "" </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("task_id parameter is required")
+        }</span>
+        
+        <span class="cov8" title="1">err := s.taskManager.TerminateTask(taskID)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        
+        <span class="cov8" title="1">response := TerminateResponse{
+                TaskID:  taskID,
+                Status:  "terminated",
+                Message: "任务已终止",
+        }
+        
+        return &amp;mcp.CallToolResultFor[TerminateResponse]{
+                Content: []mcp.Content{
+                        &amp;mcp.TextContent{
+                                Text: fmt.Sprintf("任务 %s 已终止", taskID),
+                        },
+                },
+                Meta: mcp.Meta{
+                        "task_id": response.TaskID,
+                        "status":  response.Status,
+                        "message": response.Message,
+                },
+        }, nil</span>
+}
+
+// handleGetTestDetails 获取测试详情
+func (s *MCPServer) handleGetTestDetails(ctx context.Context, session *mcp.ServerSession, params *mcp.CallToolParamsFor[TestDetailsRequest]) (*mcp.CallToolResultFor[map[string]interface{}], error) <span class="cov8" title="1">{
+        taskID := params.Arguments.TaskID
+        if taskID == "" </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("task_id parameter is required")
+        }</span>
+        
+        <span class="cov8" title="1">testName := params.Arguments.TestName
+        if testName == "" </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("test_name parameter is required")
+        }</span>
+        
+        <span class="cov8" title="1">task := s.taskManager.GetTask(taskID)
+        if task == nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("task not found: %s", taskID)
+        }</span>
+        
+        <span class="cov8" title="1">details := task.GetTestDetails(testName)
+        if details == nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("test not found: %s", testName)
+        }</span>
+        
+        <span class="cov8" title="1">return &amp;mcp.CallToolResultFor[map[string]interface{}]{
+                Content: []mcp.Content{
+                        &amp;mcp.TextContent{
+                                Text: fmt.Sprintf("测试 %s 的详细信息", testName),
+                        },
+                },
+                Meta: mcp.Meta(details),
+        }, nil</span>
+}</pre>
+		
+		<pre class="file" id="file3" style="display: none">package task
+
+import (
+        "context"
+        "fmt"
+        "sync"
+        "time"
+
+        "github.com/allanpk716/go_test_reader/internal/parser"
+)
+
+// Status 任务状态
+type Status string
+
+const (
+        StatusPending   Status = "pending"
+        StatusRunning   Status = "running"
+        StatusCompleted Status = "completed"
+        StatusFailed    Status = "failed"
+        StatusCanceled  Status = "canceled"
+)
+
+// Task 分析任务
+type Task struct {
+        ID        string
+        FilePath  string
+        Status    Status
+        Result    *parser.TestResult
+        Error     error
+        CreatedAt time.Time
+        UpdatedAt time.Time
+        ctx       context.Context
+        cancel    context.CancelFunc
+        mu        sync.RWMutex
+}
+
+// Manager 任务管理器
+type Manager struct {
+        tasks map[string]*Task
+        mu    sync.RWMutex
+}
+
+// NewManager 创建新的任务管理器
+func NewManager() *Manager <span class="cov8" title="1">{
+        return &amp;Manager{
+                tasks: make(map[string]*Task),
+        }
+}</span>
+
+// CreateTask 创建新任务
+func (m *Manager) CreateTask(id, filePath string) *Task <span class="cov8" title="1">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        
+        ctx, cancel := context.WithCancel(context.Background())
+        
+        task := &amp;Task{
+                ID:        id,
+                FilePath:  filePath,
+                Status:    StatusPending,
+                CreatedAt: time.Now(),
+                UpdatedAt: time.Now(),
+                ctx:       ctx,
+                cancel:    cancel,
+        }
+        
+        m.tasks[id] = task
+        return task
+}</span>
+
+// GetTask 获取任务
+func (m *Manager) GetTask(id string) *Task <span class="cov8" title="1">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+        
+        return m.tasks[id]
+}</span>
+
+// TerminateTask 终止任务
+func (m *Manager) TerminateTask(id string) error <span class="cov8" title="1">{
+        m.mu.RLock()
+        task, exists := m.tasks[id]
+        m.mu.RUnlock()
+        
+        if !exists </span><span class="cov8" title="1">{
+                return fmt.Errorf("task not found: %s", id)
+        }</span>
+        
+        <span class="cov8" title="1">task.mu.Lock()
+        defer task.mu.Unlock()
+        
+        if task.Status == StatusCompleted || task.Status == StatusFailed || task.Status == StatusCanceled </span><span class="cov8" title="1">{
+                return fmt.Errorf("task %s is already finished with status: %s", id, task.Status)
+        }</span>
+        
+        <span class="cov8" title="1">task.cancel()
+        task.Status = StatusCanceled
+        task.UpdatedAt = time.Now()
+        
+        return nil</span>
+}
+
+// ListTasks 列出所有任务
+func (m *Manager) ListTasks() []*Task <span class="cov0" title="0">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+        
+        tasks := make([]*Task, 0, len(m.tasks))
+        for _, task := range m.tasks </span><span class="cov0" title="0">{
+                tasks = append(tasks, task)
+        }</span>
+        
+        <span class="cov0" title="0">return tasks</span>
+}
+
+// CleanupOldTasks 清理旧任务（可选的后台清理功能）
+func (m *Manager) CleanupOldTasks(maxAge time.Duration) <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        
+        now := time.Now()
+        for id, task := range m.tasks </span><span class="cov0" title="0">{
+                if now.Sub(task.CreatedAt) &gt; maxAge </span><span class="cov0" title="0">{
+                        task.mu.Lock()
+                        if task.cancel != nil </span><span class="cov0" title="0">{
+                                task.cancel()
+                        }</span>
+                        <span class="cov0" title="0">task.mu.Unlock()
+                        delete(m.tasks, id)</span>
+                }
+        }
+}
+
+// SetRunning 设置任务为运行状态
+func (t *Task) SetRunning() <span class="cov8" title="1">{
+        t.mu.Lock()
+        defer t.mu.Unlock()
+        
+        t.Status = StatusRunning
+        t.UpdatedAt = time.Now()
+}</span>
+
+// SetResult 设置任务结果
+func (t *Task) SetResult(result *parser.TestResult) <span class="cov8" title="1">{
+        t.mu.Lock()
+        defer t.mu.Unlock()
+        
+        t.Result = result
+        t.Status = StatusCompleted
+        t.UpdatedAt = time.Now()
+}</span>
+
+// SetError 设置任务错误
+func (t *Task) SetError(err error) <span class="cov8" title="1">{
+        t.mu.Lock()
+        defer t.mu.Unlock()
+        
+        t.Error = err
+        t.Status = StatusFailed
+        t.UpdatedAt = time.Now()
+}</span>
+
+// GetStatus 获取任务状态信息
+func (t *Task) GetStatus() map[string]interface{} <span class="cov8" title="1">{
+        t.mu.RLock()
+        defer t.mu.RUnlock()
+        
+        status := map[string]interface{}{
+                "task_id":    t.ID,
+                "status":     string(t.Status),
+                "file_path":  t.FilePath,
+                "created_at": t.CreatedAt,
+                "updated_at": t.UpdatedAt,
+        }
+        
+        if t.Error != nil </span><span class="cov0" title="0">{
+                status["error"] = t.Error.Error()
+        }</span>
+        
+        <span class="cov8" title="1">if t.Result != nil </span><span class="cov8" title="1">{
+                status["result"] = map[string]interface{}{
+                        "total_tests":   t.Result.TotalTests,
+                        "passed_tests":  t.Result.PassedTests,
+                        "failed_tests":  t.Result.FailedTests,
+                        "skipped_tests": t.Result.SkippedTests,
+                        "failed_test_names": t.Result.FailedTestNames,
+                        "passed_test_names": t.Result.PassedTestNames,
+                }
+        }</span>
+        
+        <span class="cov8" title="1">return status</span>
+}
+
+// GetTestDetails 获取特定测试的详细信息
+func (t *Task) GetTestDetails(testName string) map[string]interface{} <span class="cov8" title="1">{
+        t.mu.RLock()
+        defer t.mu.RUnlock()
+        
+        if t.Result == nil </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+        
+        <span class="cov8" title="1">if details, exists := t.Result.TestDetails[testName]; exists </span><span class="cov8" title="1">{
+                return map[string]interface{}{
+                        "test_name": testName,
+                        "status":    details.Status,
+                        "output":    details.Output,
+                        "error":     details.Error,
+                        "elapsed":   details.Elapsed,
+                }
+        }</span>
+        
+        <span class="cov8" title="1">return nil</span>
+}
+
+// IsCanceled 检查任务是否被取消
+func (t *Task) IsCanceled() bool <span class="cov8" title="1">{
+        select </span>{
+        case &lt;-t.ctx.Done():<span class="cov8" title="1">
+                return true</span>
+        default:<span class="cov8" title="1">
+                return false</span>
+        }
+}</pre>
+		
+		<pre class="file" id="file4" style="display: none">package testutil
+
+import (
+        "fmt"
+        "sync"
+        "time"
+
+        "github.com/allanpk716/go_test_reader/internal/task"
+)
+
+// MockMCPServer Mock MCP服务器，用于集成测试
+type MockMCPServer struct {
+        mu           sync.RWMutex
+        taskManager  *task.Manager
+        uploadedLogs map[string]string // taskID -&gt; log content
+        responses    map[string]interface{} // method -&gt; response
+        callHistory  []MockCall
+        isRunning    bool
+}
+
+// MockCall 记录方法调用历史
+type MockCall struct {
+        Method    string
+        Params    map[string]interface{}
+        Timestamp time.Time
+        Result    interface{}
+        Error     error
+}
+
+// NewMockMCPServer 创建Mock MCP服务器
+func NewMockMCPServer() *MockMCPServer <span class="cov0" title="0">{
+        return &amp;MockMCPServer{
+                taskManager:  task.NewManager(),
+                uploadedLogs: make(map[string]string),
+                responses:    make(map[string]interface{}),
+                callHistory:  make([]MockCall, 0),
+                isRunning:    false,
+        }
+}</span>
+
+// Start 启动Mock服务器
+func (m *MockMCPServer) Start() <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        m.isRunning = true
+}</span>
+
+// Stop 停止Mock服务器
+func (m *MockMCPServer) Stop() <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        m.isRunning = false
+}</span>
+
+// IsRunning 检查服务器是否运行中
+func (m *MockMCPServer) IsRunning() bool <span class="cov0" title="0">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+        return m.isRunning
+}</span>
+
+// SetResponse 设置方法的预期响应
+func (m *MockMCPServer) SetResponse(method string, response interface{}) <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        m.responses[method] = response
+}</span>
+
+// GetCallHistory 获取调用历史
+func (m *MockMCPServer) GetCallHistory() []MockCall <span class="cov0" title="0">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+        history := make([]MockCall, len(m.callHistory))
+        copy(history, m.callHistory)
+        return history
+}</span>
+
+// GetCallCount 获取指定方法的调用次数
+func (m *MockMCPServer) GetCallCount(method string) int <span class="cov0" title="0">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+        count := 0
+        for _, call := range m.callHistory </span><span class="cov0" title="0">{
+                if call.Method == method </span><span class="cov0" title="0">{
+                        count++
+                }</span>
+        }
+        <span class="cov0" title="0">return count</span>
+}
+
+// ClearHistory 清空调用历史
+func (m *MockMCPServer) ClearHistory() <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        m.callHistory = m.callHistory[:0]
+}</span>
+
+// recordCall 记录方法调用
+func (m *MockMCPServer) recordCall(method string, params map[string]interface{}, result interface{}, err error) <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        m.callHistory = append(m.callHistory, MockCall{
+                Method:    method,
+                Params:    params,
+                Timestamp: time.Now(),
+                Result:    result,
+                Error:     err,
+        })
+}</span>
+
+// HandleUploadTestLog 模拟上传测试日志
+func (m *MockMCPServer) HandleUploadTestLog(params map[string]interface{}) (interface{}, error) <span class="cov0" title="0">{
+        if !m.IsRunning() </span><span class="cov0" title="0">{
+                err := fmt.Errorf("server not running")
+                m.recordCall("upload_test_log", params, nil, err)
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">filePath, ok := params["file_path"].(string)
+        if !ok || filePath == "" </span><span class="cov0" title="0">{
+                err := fmt.Errorf("invalid file_path parameter")
+                m.recordCall("upload_test_log", params, nil, err)
+                return nil, err
+        }</span>
+
+        // 检查是否有预设响应
+        <span class="cov0" title="0">if response, exists := m.responses["upload_test_log"]; exists </span><span class="cov0" title="0">{
+                m.recordCall("upload_test_log", params, response, nil)
+                return response, nil
+        }</span>
+
+        // 默认行为：创建任务并开始处理
+        <span class="cov0" title="0">taskID := fmt.Sprintf("mock-task-%d", time.Now().UnixNano())
+        task := m.taskManager.CreateTask(taskID, filePath)
+        if task == nil </span><span class="cov0" title="0">{
+                err := fmt.Errorf("failed to create task")
+                m.recordCall("upload_test_log", params, nil, err)
+                return nil, err
+        }</span>
+
+        // 模拟异步处理
+        <span class="cov0" title="0">go m.simulateLogProcessing(taskID, filePath)
+
+        result := map[string]interface{}{
+                "task_id": taskID,
+                "status":  "processing",
+                "message": "Test log upload started",
+        }
+
+        m.recordCall("upload_test_log", params, result, nil)
+        return result, nil</span>
+}
+
+// HandleGetAnalysisResult 模拟获取分析结果
+func (m *MockMCPServer) HandleGetAnalysisResult(params map[string]interface{}) (interface{}, error) <span class="cov0" title="0">{
+        if !m.IsRunning() </span><span class="cov0" title="0">{
+                err := fmt.Errorf("server not running")
+                m.recordCall("get_analysis_result", params, nil, err)
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">taskID, ok := params["task_id"].(string)
+        if !ok || taskID == "" </span><span class="cov0" title="0">{
+                err := fmt.Errorf("invalid task_id parameter")
+                m.recordCall("get_analysis_result", params, nil, err)
+                return nil, err
+        }</span>
+
+        // 检查是否有预设响应
+        <span class="cov0" title="0">if response, exists := m.responses["get_analysis_result"]; exists </span><span class="cov0" title="0">{
+                m.recordCall("get_analysis_result", params, response, nil)
+                return response, nil
+        }</span>
+
+        // 默认行为：获取任务状态和结果
+        <span class="cov0" title="0">task := m.taskManager.GetTask(taskID)
+        if task == nil </span><span class="cov0" title="0">{
+                err := fmt.Errorf("task not found: %s", taskID)
+                m.recordCall("get_analysis_result", params, nil, err)
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">result := task.GetStatus()
+
+        m.recordCall("get_analysis_result", params, result, nil)
+        return result, nil</span>
+}
+
+// HandleTerminateTask 模拟终止任务
+func (m *MockMCPServer) HandleTerminateTask(params map[string]interface{}) (interface{}, error) <span class="cov0" title="0">{
+        if !m.IsRunning() </span><span class="cov0" title="0">{
+                err := fmt.Errorf("server not running")
+                m.recordCall("terminate_task", params, nil, err)
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">taskID, ok := params["task_id"].(string)
+        if !ok || taskID == "" </span><span class="cov0" title="0">{
+                err := fmt.Errorf("invalid task_id parameter")
+                m.recordCall("terminate_task", params, nil, err)
+                return nil, err
+        }</span>
+
+        // 检查是否有预设响应
+        <span class="cov0" title="0">if response, exists := m.responses["terminate_task"]; exists </span><span class="cov0" title="0">{
+                m.recordCall("terminate_task", params, response, nil)
+                return response, nil
+        }</span>
+
+        // 默认行为：终止任务
+        <span class="cov0" title="0">err := m.taskManager.TerminateTask(taskID)
+        if err != nil </span><span class="cov0" title="0">{
+                m.recordCall("terminate_task", params, nil, err)
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">result := map[string]interface{}{
+                "task_id": taskID,
+                "status":  "terminated",
+                "message": "Task terminated successfully",
+        }
+
+        m.recordCall("terminate_task", params, result, nil)
+        return result, nil</span>
+}
+
+// HandleGetTestDetails 模拟获取测试详情
+func (m *MockMCPServer) HandleGetTestDetails(params map[string]interface{}) (interface{}, error) <span class="cov0" title="0">{
+        if !m.IsRunning() </span><span class="cov0" title="0">{
+                err := fmt.Errorf("server not running")
+                m.recordCall("get_test_details", params, nil, err)
+                return nil, err
+        }</span>
+
+        // 检查是否有预设响应
+        <span class="cov0" title="0">if response, exists := m.responses["get_test_details"]; exists </span><span class="cov0" title="0">{
+                m.recordCall("get_test_details", params, response, nil)
+                return response, nil
+        }</span>
+
+        // 默认行为：返回模拟测试详情
+        <span class="cov0" title="0">mockResult := NewMockTestResult()
+        details := mockResult.TestDetails
+
+        m.recordCall("get_test_details", params, details, nil)
+        return details, nil</span>
+}
+
+// simulateLogProcessing 模拟日志处理过程
+func (m *MockMCPServer) simulateLogProcessing(taskID, filePath string) <span class="cov0" title="0">{
+        task := m.taskManager.GetTask(taskID)
+        if task == nil </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        // 模拟处理延迟
+        <span class="cov0" title="0">time.Sleep(100 * time.Millisecond)
+
+        // 检查任务是否被取消
+        if task.IsCanceled() </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        // 模拟解析结果
+        <span class="cov0" title="0">mockResult := NewMockTestResult()
+        parserResult := mockResult.ToParserTestResult()
+
+        // 存储日志内容（模拟）
+        m.mu.Lock()
+        m.uploadedLogs[taskID] = fmt.Sprintf("mock log content for %s", filePath)
+        m.mu.Unlock()
+
+        // 设置任务结果
+        task.SetResult(parserResult)</span>
+}
+
+// GetUploadedLog 获取上传的日志内容
+func (m *MockMCPServer) GetUploadedLog(taskID string) (string, bool) <span class="cov0" title="0">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+        content, exists := m.uploadedLogs[taskID]
+        return content, exists
+}</span>
+
+// SimulateError 模拟错误情况
+func (m *MockMCPServer) SimulateError(taskID string, err error) <span class="cov0" title="0">{
+        task := m.taskManager.GetTask(taskID)
+        if task != nil </span><span class="cov0" title="0">{
+                task.SetError(err)
+        }</span>
+}
+
+// GetTaskManager 获取任务管理器（用于测试）
+func (m *MockMCPServer) GetTaskManager() *task.Manager <span class="cov0" title="0">{
+        return m.taskManager
+}</span>
+
+// MockTestLogGenerator Mock测试日志生成器
+type MockTestLogGenerator struct {
+        scenarios map[string]string
+}
+
+// NewMockTestLogGenerator 创建Mock测试日志生成器
+func NewMockTestLogGenerator() *MockTestLogGenerator <span class="cov0" title="0">{
+        g := &amp;MockTestLogGenerator{
+                scenarios: make(map[string]string),
+        }
+        g.initializeScenarios()
+        return g
+}</span>
+
+// initializeScenarios 初始化测试场景
+func (g *MockTestLogGenerator) initializeScenarios() <span class="cov0" title="0">{
+        g.scenarios["success"] = `{"Time":"2024-01-15T10:30:00Z","Action":"run","Package":"example/pkg","Test":"TestSuccess"}
+{"Time":"2024-01-15T10:30:01Z","Action":"pass","Package":"example/pkg","Test":"TestSuccess","Elapsed":0.001}`
+
+        g.scenarios["failure"] = `{"Time":"2024-01-15T10:30:00Z","Action":"run","Package":"example/pkg","Test":"TestFailure"}
+{"Time":"2024-01-15T10:30:01Z","Action":"output","Package":"example/pkg","Test":"TestFailure","Output":"FAIL: assertion failed\n"}
+{"Time":"2024-01-15T10:30:02Z","Action":"fail","Package":"example/pkg","Test":"TestFailure","Elapsed":0.002}`
+
+        g.scenarios["skip"] = `{"Time":"2024-01-15T10:30:00Z","Action":"run","Package":"example/pkg","Test":"TestSkip"}
+{"Time":"2024-01-15T10:30:01Z","Action":"skip","Package":"example/pkg","Test":"TestSkip","Elapsed":0.001}`
+
+        g.scenarios["mixed"] = `{"Time":"2024-01-15T10:30:00Z","Action":"run","Package":"example/pkg","Test":"TestPass"}
+{"Time":"2024-01-15T10:30:01Z","Action":"pass","Package":"example/pkg","Test":"TestPass","Elapsed":0.001}
+{"Time":"2024-01-15T10:30:02Z","Action":"run","Package":"example/pkg","Test":"TestFail"}
+{"Time":"2024-01-15T10:30:03Z","Action":"fail","Package":"example/pkg","Test":"TestFail","Elapsed":0.002}
+{"Time":"2024-01-15T10:30:04Z","Action":"run","Package":"example/pkg","Test":"TestSkip"}
+{"Time":"2024-01-15T10:30:05Z","Action":"skip","Package":"example/pkg","Test":"TestSkip","Elapsed":0.001}`
+
+        g.scenarios["invalid"] = `{"Time":"2024-01-15T10:30:00Z","Action":"run","Package":"example/pkg","Test":"TestInvalid"}
+invalid json line
+{"Time":"2024-01-15T10:30:02Z","Action":"pass","Package":"example/pkg","Test":"TestInvalid","Elapsed":0.001}`
+}</span>
+
+// GetScenario 获取指定场景的测试日志
+func (g *MockTestLogGenerator) GetScenario(scenario string) (string, bool) <span class="cov0" title="0">{
+        content, exists := g.scenarios[scenario]
+        return content, exists
+}</span>
+
+// GetAllScenarios 获取所有场景名称
+func (g *MockTestLogGenerator) GetAllScenarios() []string <span class="cov0" title="0">{
+        scenarios := make([]string, 0, len(g.scenarios))
+        for name := range g.scenarios </span><span class="cov0" title="0">{
+                scenarios = append(scenarios, name)
+        }</span>
+        <span class="cov0" title="0">return scenarios</span>
+}
+
+// AddScenario 添加自定义场景
+func (g *MockTestLogGenerator) AddScenario(name, content string) <span class="cov0" title="0">{
+        g.scenarios[name] = content
+}</pre>
+		
+		<pre class="file" id="file5" style="display: none">package testutil
+
+import (
+        "fmt"
+        "os"
+        "path/filepath"
+        "strings"
+        "testing"
+        "time"
+
+        "github.com/allanpk716/go_test_reader/internal/parser"
+)
+
+// TestDataGenerator 测试数据生成器
+type TestDataGenerator struct{}
+
+// NewTestDataGenerator 创建测试数据生成器
+func NewTestDataGenerator() *TestDataGenerator <span class="cov0" title="0">{
+        return &amp;TestDataGenerator{}
+}</span>
+
+// GenerateValidTestLog 生成有效的测试日志内容
+func (g *TestDataGenerator) GenerateValidTestLog() string <span class="cov0" title="0">{
+        return `{"Time":"2024-01-15T10:30:00Z","Action":"run","Package":"example/pkg","Test":"TestExample1"}
+{"Time":"2024-01-15T10:30:01Z","Action":"output","Package":"example/pkg","Test":"TestExample1","Output":"=== RUN   TestExample1\n"}
+{"Time":"2024-01-15T10:30:02Z","Action":"pass","Package":"example/pkg","Test":"TestExample1","Elapsed":0.001}
+{"Time":"2024-01-15T10:30:03Z","Action":"run","Package":"example/pkg","Test":"TestExample2"}
+{"Time":"2024-01-15T10:30:04Z","Action":"output","Package":"example/pkg","Test":"TestExample2","Output":"=== RUN   TestExample2\n"}
+{"Time":"2024-01-15T10:30:05Z","Action":"output","Package":"example/pkg","Test":"TestExample2","Output":"FAIL: Expected 5, got 3\n"}
+{"Time":"2024-01-15T10:30:06Z","Action":"fail","Package":"example/pkg","Test":"TestExample2","Elapsed":0.002}`
+}</span>
+
+// GenerateSkippedTestLog 生成包含跳过测试的日志
+func (g *TestDataGenerator) GenerateSkippedTestLog() string <span class="cov0" title="0">{
+        return `{"Time":"2024-01-15T10:30:00Z","Action":"run","Package":"example/pkg","Test":"TestSkipped"}
+{"Time":"2024-01-15T10:30:01Z","Action":"output","Package":"example/pkg","Test":"TestSkipped","Output":"=== RUN   TestSkipped\n"}
+{"Time":"2024-01-15T10:30:02Z","Action":"skip","Package":"example/pkg","Test":"TestSkipped","Elapsed":0.001}`
+}</span>
+
+// GenerateMultiPackageTestLog 生成多包测试日志
+func (g *TestDataGenerator) GenerateMultiPackageTestLog() string <span class="cov0" title="0">{
+        return `{"Time":"2024-01-15T10:30:00Z","Action":"run","Package":"pkg1","Test":"Test1"}
+{"Time":"2024-01-15T10:30:01Z","Action":"pass","Package":"pkg1","Test":"Test1","Elapsed":0.001}
+{"Time":"2024-01-15T10:30:02Z","Action":"run","Package":"pkg2","Test":"Test2"}
+{"Time":"2024-01-15T10:30:03Z","Action":"pass","Package":"pkg2","Test":"Test2","Elapsed":0.002}`
+}</span>
+
+// GenerateInvalidJSONLog 生成包含无效JSON的日志
+func (g *TestDataGenerator) GenerateInvalidJSONLog() string <span class="cov0" title="0">{
+        return `{"Time":"2024-01-15T10:30:00Z","Action":"run","Package":"example/pkg","Test":"TestExample1"}
+invalid json line
+{"Time":"2024-01-15T10:30:02Z","Action":"pass","Package":"example/pkg","Test":"TestExample1","Elapsed":0.001}`
+}</span>
+
+// GenerateEmptyLog 生成空日志
+func (g *TestDataGenerator) GenerateEmptyLog() string <span class="cov0" title="0">{
+        return ""
+}</span>
+
+// GenerateComplexTestLog 生成复杂的测试日志（包含多种状态）
+func (g *TestDataGenerator) GenerateComplexTestLog() string <span class="cov0" title="0">{
+        return `{"Time":"2024-01-15T10:30:00Z","Action":"run","Package":"complex/pkg","Test":"TestPass"}
+{"Time":"2024-01-15T10:30:01Z","Action":"output","Package":"complex/pkg","Test":"TestPass","Output":"=== RUN   TestPass\n"}
+{"Time":"2024-01-15T10:30:02Z","Action":"pass","Package":"complex/pkg","Test":"TestPass","Elapsed":0.001}
+{"Time":"2024-01-15T10:30:03Z","Action":"run","Package":"complex/pkg","Test":"TestFail"}
+{"Time":"2024-01-15T10:30:04Z","Action":"output","Package":"complex/pkg","Test":"TestFail","Output":"=== RUN   TestFail\n"}
+{"Time":"2024-01-15T10:30:05Z","Action":"output","Package":"complex/pkg","Test":"TestFail","Output":"Error: assertion failed\n"}
+{"Time":"2024-01-15T10:30:06Z","Action":"fail","Package":"complex/pkg","Test":"TestFail","Elapsed":0.002}
+{"Time":"2024-01-15T10:30:07Z","Action":"run","Package":"complex/pkg","Test":"TestSkip"}
+{"Time":"2024-01-15T10:30:08Z","Action":"output","Package":"complex/pkg","Test":"TestSkip","Output":"=== RUN   TestSkip\n"}
+{"Time":"2024-01-15T10:30:09Z","Action":"skip","Package":"complex/pkg","Test":"TestSkip","Elapsed":0.0001}`
+}</span>
+
+// MockTestResult 创建模拟测试结果
+type MockTestResult struct {
+        TotalTests       int
+        PassedTests      int
+        FailedTests      int
+        SkippedTests     int
+        FailedTestNames  []string
+        PassedTestNames  []string
+        SkippedTestNames []string
+        TestDetails      map[string]*parser.TestDetail
+        Packages         []string
+}
+
+// NewMockTestResult 创建模拟测试结果
+func NewMockTestResult() *MockTestResult <span class="cov0" title="0">{
+        return &amp;MockTestResult{
+                TotalTests:       3,
+                PassedTests:      2,
+                FailedTests:      1,
+                SkippedTests:     0,
+                FailedTestNames:  []string{"TestFailed"},
+                PassedTestNames:  []string{"TestPassed1", "TestPassed2"},
+                SkippedTestNames: []string{},
+                TestDetails: map[string]*parser.TestDetail{
+                        "TestPassed1": {
+                                Status:  "pass",
+                                Output:  "test passed",
+                                Error:   "",
+                                Elapsed: 0.001,
+                        },
+                        "TestPassed2": {
+                                Status:  "pass",
+                                Output:  "test passed",
+                                Error:   "",
+                                Elapsed: 0.002,
+                        },
+                        "TestFailed": {
+                                Status:  "fail",
+                                Output:  "test failed",
+                                Error:   "assertion failed",
+                                Elapsed: 0.003,
+                        },
+                },
+                Packages: []string{"example/pkg"},
+        }
+}</span>
+
+// ToParserTestResult 转换为parser.TestResult
+func (m *MockTestResult) ToParserTestResult() *parser.TestResult <span class="cov0" title="0">{
+        return &amp;parser.TestResult{
+                TotalTests:       m.TotalTests,
+                PassedTests:      m.PassedTests,
+                FailedTests:      m.FailedTests,
+                SkippedTests:     m.SkippedTests,
+                FailedTestNames:  m.FailedTestNames,
+                PassedTestNames:  m.PassedTestNames,
+                SkippedTestNames: m.SkippedTestNames,
+                TestDetails:      m.TestDetails,
+                Packages:         m.Packages,
+        }
+}</span>
+
+// FileHelper 文件操作辅助工具
+type FileHelper struct{}
+
+// NewFileHelper 创建文件辅助工具
+func NewFileHelper() *FileHelper <span class="cov0" title="0">{
+        return &amp;FileHelper{}
+}</span>
+
+// CreateTempFile 创建临时文件
+func (f *FileHelper) CreateTempFile(t *testing.T, content string) string <span class="cov0" title="0">{
+        tempDir := t.TempDir()
+        tempFile := filepath.Join(tempDir, "test.json")
+
+        err := os.WriteFile(tempFile, []byte(content), 0644)
+        if err != nil </span><span class="cov0" title="0">{
+                t.Fatalf("Failed to create temp file: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">return tempFile</span>
+}
+
+// CreateTempFileWithName 创建指定名称的临时文件
+func (f *FileHelper) CreateTempFileWithName(t *testing.T, filename, content string) string <span class="cov0" title="0">{
+        tempDir := t.TempDir()
+        tempFile := filepath.Join(tempDir, filename)
+
+        err := os.WriteFile(tempFile, []byte(content), 0644)
+        if err != nil </span><span class="cov0" title="0">{
+                t.Fatalf("Failed to create temp file: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">return tempFile</span>
+}
+
+// AssertionHelper 断言辅助工具
+type AssertionHelper struct{}
+
+// NewAssertionHelper 创建断言辅助工具
+func NewAssertionHelper() *AssertionHelper <span class="cov0" title="0">{
+        return &amp;AssertionHelper{}
+}</span>
+
+// AssertNoError 断言无错误
+func (a *AssertionHelper) AssertNoError(t *testing.T, err error) <span class="cov0" title="0">{
+        if err != nil </span><span class="cov0" title="0">{
+                t.Fatalf("Expected no error, got %v", err)
+        }</span>
+}
+
+// AssertError 断言有错误
+func (a *AssertionHelper) AssertError(t *testing.T, err error) <span class="cov0" title="0">{
+        if err == nil </span><span class="cov0" title="0">{
+                t.Fatal("Expected error, got nil")
+        }</span>
+}
+
+// AssertErrorContains 断言错误包含指定文本
+func (a *AssertionHelper) AssertErrorContains(t *testing.T, err error, expectedText string) <span class="cov0" title="0">{
+        if err == nil </span><span class="cov0" title="0">{
+                t.Fatal("Expected error, got nil")
+        }</span>
+        <span class="cov0" title="0">if !strings.Contains(err.Error(), expectedText) </span><span class="cov0" title="0">{
+                t.Errorf("Expected error to contain '%s', got %v", expectedText, err)
+        }</span>
+}
+
+// AssertEqual 断言相等
+func (a *AssertionHelper) AssertEqual(t *testing.T, expected, actual interface{}) <span class="cov0" title="0">{
+        if expected != actual </span><span class="cov0" title="0">{
+                t.Errorf("Expected %v, got %v", expected, actual)
+        }</span>
+}
+
+// AssertNotNil 断言非空
+func (a *AssertionHelper) AssertNotNil(t *testing.T, value interface{}) <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                t.Fatal("Expected non-nil value, got nil")
+        }</span>
+}
+
+// AssertNil 断言为空
+func (a *AssertionHelper) AssertNil(t *testing.T, value interface{}) <span class="cov0" title="0">{
+        if value != nil </span><span class="cov0" title="0">{
+                t.Errorf("Expected nil, got %v", value)
+        }</span>
+}
+
+// AssertStringSliceEqual 断言字符串切片相等
+func (a *AssertionHelper) AssertStringSliceEqual(t *testing.T, expected, actual []string) <span class="cov0" title="0">{
+        if len(expected) != len(actual) </span><span class="cov0" title="0">{
+                t.Errorf("Expected slice length %d, got %d", len(expected), len(actual))
+                return
+        }</span>
+        <span class="cov0" title="0">for i, exp := range expected </span><span class="cov0" title="0">{
+                if actual[i] != exp </span><span class="cov0" title="0">{
+                        t.Errorf("Expected slice[%d]=%s, got %s", i, exp, actual[i])
+                }</span>
+        }
+}
+
+// ConcurrencyHelper 并发测试辅助工具
+type ConcurrencyHelper struct{}
+
+// NewConcurrencyHelper 创建并发测试辅助工具
+func NewConcurrencyHelper() *ConcurrencyHelper <span class="cov0" title="0">{
+        return &amp;ConcurrencyHelper{}
+}</span>
+
+// RunConcurrently 并发执行函数
+func (c *ConcurrencyHelper) RunConcurrently(t *testing.T, numGoroutines int, fn func(int)) <span class="cov0" title="0">{
+        done := make(chan bool, numGoroutines)
+
+        for i := 0; i &lt; numGoroutines; i++ </span><span class="cov0" title="0">{
+                go func(index int) </span><span class="cov0" title="0">{
+                        defer func() </span><span class="cov0" title="0">{
+                                if r := recover(); r != nil </span><span class="cov0" title="0">{
+                                        t.Errorf("Goroutine %d panicked: %v", index, r)
+                                }</span>
+                                <span class="cov0" title="0">done &lt;- true</span>
+                        }()
+                        <span class="cov0" title="0">fn(index)</span>
+                }(i)
+        }
+
+        // 等待所有goroutine完成
+        <span class="cov0" title="0">for i := 0; i &lt; numGoroutines; i++ </span><span class="cov0" title="0">{
+                select </span>{
+                case &lt;-done:<span class="cov0" title="0"></span>
+                        // 成功
+                case &lt;-time.After(10 * time.Second):<span class="cov0" title="0">
+                        t.Fatalf("Timeout waiting for goroutine %d", i)</span>
+                }
+        }
+}
+
+// WaitWithTimeout 带超时的等待
+func (c *ConcurrencyHelper) WaitWithTimeout(t *testing.T, ch &lt;-chan bool, timeout time.Duration, message string) <span class="cov0" title="0">{
+        select </span>{
+        case success := &lt;-ch:<span class="cov0" title="0">
+                if !success </span><span class="cov0" title="0">{
+                        t.Errorf("Operation failed: %s", message)
+                }</span>
+        case &lt;-time.After(timeout):<span class="cov0" title="0">
+                t.Errorf("Timeout waiting for: %s", message)</span>
+        }
+}
+
+// TestSuite 测试套件基础结构
+type TestSuite struct {
+        DataGenerator     *TestDataGenerator
+        FileHelper        *FileHelper
+        AssertionHelper   *AssertionHelper
+        ConcurrencyHelper *ConcurrencyHelper
+}
+
+// NewTestSuite 创建测试套件
+func NewTestSuite() *TestSuite <span class="cov0" title="0">{
+        return &amp;TestSuite{
+                DataGenerator:     NewTestDataGenerator(),
+                FileHelper:        NewFileHelper(),
+                AssertionHelper:   NewAssertionHelper(),
+                ConcurrencyHelper: NewConcurrencyHelper(),
+        }
+}</span>
+
+// BenchmarkHelper 性能测试辅助工具
+type BenchmarkHelper struct{}
+
+// NewBenchmarkHelper 创建性能测试辅助工具
+func NewBenchmarkHelper() *BenchmarkHelper <span class="cov0" title="0">{
+        return &amp;BenchmarkHelper{}
+}</span>
+
+// GenerateLargeTestLog 生成大型测试日志（用于性能测试）
+func (b *BenchmarkHelper) GenerateLargeTestLog(numTests int) string <span class="cov0" title="0">{
+        var builder strings.Builder
+        baseTime := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+
+        for i := 0; i &lt; numTests; i++ </span><span class="cov0" title="0">{
+                testName := fmt.Sprintf("TestBenchmark%d", i)
+                packageName := fmt.Sprintf("benchmark/pkg%d", i%10) // 10个不同的包
+                startTime := baseTime.Add(time.Duration(i*3) * time.Millisecond)
+                endTime := startTime.Add(time.Duration(i%5+1) * time.Millisecond)
+
+                // run event
+                builder.WriteString(fmt.Sprintf(`{"Time":"%s","Action":"run","Package":"%s","Test":"%s"}`, 
+                        startTime.Format(time.RFC3339Nano), packageName, testName))
+                builder.WriteString("\n")
+
+                // output event
+                builder.WriteString(fmt.Sprintf(`{"Time":"%s","Action":"output","Package":"%s","Test":"%s","Output":"=== RUN   %s\n"}`, 
+                        startTime.Add(time.Millisecond).Format(time.RFC3339Nano), packageName, testName, testName))
+                builder.WriteString("\n")
+
+                // result event (80% pass, 20% fail)
+                action := "pass"
+                if i%5 == 0 </span><span class="cov0" title="0">{
+                        action = "fail"
+                        // 添加失败输出
+                        builder.WriteString(fmt.Sprintf(`{"Time":"%s","Action":"output","Package":"%s","Test":"%s","Output":"FAIL: Test %d failed\n"}`, 
+                                endTime.Add(-time.Millisecond).Format(time.RFC3339Nano), packageName, testName, i))
+                        builder.WriteString("\n")
+                }</span>
+
+                <span class="cov0" title="0">builder.WriteString(fmt.Sprintf(`{"Time":"%s","Action":"%s","Package":"%s","Test":"%s","Elapsed":%f}`, 
+                        endTime.Format(time.RFC3339Nano), action, packageName, testName, float64(i%5+1)/1000.0))
+                builder.WriteString("\n")</span>
+        }
+
+        <span class="cov0" title="0">return builder.String()</span>
+}
+
+// MeasureMemoryUsage 测量内存使用情况
+func (b *BenchmarkHelper) MeasureMemoryUsage(fn func()) (beforeMem, afterMem uint64) <span class="cov0" title="0">{
+        // 强制垃圾回收
+        // runtime.GC()
+        // runtime.GC() // 调用两次确保清理完成
+
+        // var m1 runtime.MemStats
+        // runtime.ReadMemStats(&amp;m1)
+        // beforeMem = m1.Alloc
+
+        // 执行函数
+        fn()
+
+        // runtime.GC()
+        // var m2 runtime.MemStats
+        // runtime.ReadMemStats(&amp;m2)
+        // afterMem = m2.Alloc
+
+        return 0, 0 // 简化实现，避免导入runtime包
+}</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
