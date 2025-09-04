@@ -70,6 +70,31 @@ go run main.go
    }
    ```
 
+### 方法三：简化配置（适用于基础 IDE）
+
+如果你的 IDE 不支持 `cwd` 和 `env` 参数：
+
+1. 编译项目：
+   ```bash
+   go build -o go_test_reader.exe
+   ```
+
+2. 配置 MCP 客户端：
+   ```json
+   {
+     "mcpServers": {
+       "go-test-reader": {
+         "command": "go_test_reader.exe",
+         "args": []
+       }
+     }
+   }
+   ```
+
+3. 确保可执行文件可访问：
+   - 将项目目录添加到系统 PATH 环境变量
+   - 或使用完整路径：`"C:\\WorkSpace\\Go2Hell\\src\\github.com\\allanpk716\\go_test_reader\\go_test_reader.exe"`
+
 ## 第三步：生成测试数据
 
 在你的 Go 项目中生成测试日志：

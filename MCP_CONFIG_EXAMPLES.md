@@ -81,9 +81,56 @@ go build -o go_test_reader.exe
 4. **查看详细错误**：
    对于失败的测试，使用 `get_test_details` 获取详情
 
+## 示例 3：简化配置（适用于基础 IDE）
+
+某些 IDE 只支持基本的 MCP 配置格式，不支持 `cwd` 和 `env` 参数：
+
+**第一步：编译并设置可执行文件**
+```bash
+go build -o go_test_reader.exe
+```
+
+**第二步：配置 MCP 客户端**
+```json
+{
+  "mcpServers": {
+    "go-test-reader": {
+      "command": "go_test_reader.exe",
+      "args": []
+    }
+  }
+}
+```
+
+**第三步：确保可执行文件可访问**
+
+选择以下方式之一：
+
+1. **添加到 PATH 环境变量**（推荐）：
+   - 将项目目录添加到系统 PATH
+   - 或将 `go_test_reader.exe` 复制到已在 PATH 中的目录
+
+2. **使用完整路径**：
+   ```json
+   {
+     "mcpServers": {
+       "go-test-reader": {
+         "command": "C:\\WorkSpace\\Go2Hell\\src\\github.com\\allanpk716\\go_test_reader\\go_test_reader.exe",
+         "args": []
+       }
+     }
+   }
+   ```
+
+**特点：**
+- 兼容性最好
+- 配置最简单
+- 适用于大多数 IDE 和 MCP 客户端
+
 ## 注意事项
 
 - Windows 环境下路径中的反斜杠需要转义（使用 `\\`）
 - 确保 MCP 客户端有权限访问指定的工作目录
 - 测试日志文件必须是 `go test -json` 格式的输出
 - 服务器通过标准输入/输出与 MCP 客户端通信
+- 对于简化配置，确保可执行文件在 PATH 中或使用完整路径
