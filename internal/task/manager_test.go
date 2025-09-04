@@ -1,7 +1,7 @@
 package task
 
 import (
-	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -30,7 +30,7 @@ func TestManager_CreateTask(t *testing.T) {
 	filePath := "/test/path/test.json"
 
 	// Act
-	task := manager.CreateTask(filePath)
+	task := manager.CreateTask("test-task", filePath)
 
 	// Assert
 	if task == nil {
@@ -57,7 +57,7 @@ func TestManager_CreateTask(t *testing.T) {
 func TestManager_GetTask(t *testing.T) {
 	// Arrange
 	manager := NewManager()
-	task := manager.CreateTask("/test/path")
+	task := manager.CreateTask("task1", "/test/path")
 
 	// Act
 	retrievedTask := manager.GetTask(task.ID)
@@ -89,7 +89,7 @@ func TestManager_GetTask_NotFound(t *testing.T) {
 func TestManager_TerminateTask(t *testing.T) {
 	// Arrange
 	manager := NewManager()
-	task := manager.CreateTask("/test/path")
+	task := manager.CreateTask("task-id", "/test/path")
 	task.SetRunning()
 
 	// Act
@@ -132,7 +132,7 @@ func TestManager_TerminateTask_NotFound(t *testing.T) {
 func TestManager_TerminateTask_AlreadyFinished(t *testing.T) {
 	// Arrange
 	manager := NewManager()
-	task := manager.CreateTask("/test/path")
+	task := manager.CreateTask("task-id", "/test/path")
 	task.SetResult(&parser.TestResult{TotalTests: 1})
 
 	// Act
@@ -151,7 +151,7 @@ func TestManager_TerminateTask_AlreadyFinished(t *testing.T) {
 func TestTask_SetRunning(t *testing.T) {
 	// Arrange
 	manager := NewManager()
-	task := manager.CreateTask("/test/path")
+	task := manager.CreateTask("task-id", "/test/path")
 	initialTime := task.UpdatedAt
 
 	// Act
@@ -171,7 +171,7 @@ func TestTask_SetRunning(t *testing.T) {
 func TestTask_SetResult(t *testing.T) {
 	// Arrange
 	manager := NewManager()
-	task := manager.CreateTask("/test/path")
+	task := manager.CreateTask("task-id", "/test/path")
 	result := &parser.TestResult{
 		TotalTests:  5,
 		PassedTests: 3,
@@ -197,7 +197,7 @@ func TestTask_SetResult(t *testing.T) {
 func TestTask_SetError(t *testing.T) {
 	// Arrange
 	manager := NewManager()
-	task := manager.CreateTask("/test/path")
+	task := manager.CreateTask("task-id", "/test/path")
 	testError := &testError{"test error"}
 
 	// Act
@@ -216,7 +216,7 @@ func TestTask_SetError(t *testing.T) {
 func TestTask_GetStatus(t *testing.T) {
 	// Arrange
 	manager := NewManager()
-	task := manager.CreateTask("/test/path")
+	task := manager.CreateTask("task-id", "/test/path")
 	result := &parser.TestResult{
 		TotalTests:      3,
 		PassedTests:     2,
@@ -254,7 +254,7 @@ func TestTask_GetStatus(t *testing.T) {
 func TestTask_GetTestDetails(t *testing.T) {
 	// Arrange
 	manager := NewManager()
-	task := manager.CreateTask("/test/path")
+	task := manager.CreateTask("task-id", "/test/path")
 	testDetails := map[string]*parser.TestDetail{
 		"TestExample": {
 			Status:  "pass",
@@ -287,7 +287,7 @@ func TestTask_GetTestDetails(t *testing.T) {
 func TestTask_GetTestDetails_NotFound(t *testing.T) {
 	// Arrange
 	manager := NewManager()
-	task := manager.CreateTask("/test/path")
+	task := manager.CreateTask("task-id", "/test/path")
 	result := &parser.TestResult{
 		TestDetails: make(map[string]*parser.TestDetail),
 	}
@@ -306,7 +306,7 @@ func TestTask_GetTestDetails_NotFound(t *testing.T) {
 func TestTask_IsCanceled(t *testing.T) {
 	// Arrange
 	manager := NewManager()
-	task := manager.CreateTask("/test/path")
+	task := manager.CreateTask("task-id", "/test/path")
 
 	// Act & Assert - 初始状态
 	if task.IsCanceled() {
@@ -335,7 +335,7 @@ func TestManager_ConcurrentAccess(t *testing.T) {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			task := manager.CreateTask("/test/path")
+			task := manager.CreateTask(fmt.Sprintf("task%d", index), "/test/path")
 			taskIDs[index] = task.ID
 		}(i)
 	}
@@ -366,7 +366,7 @@ func TestManager_ConcurrentAccess(t *testing.T) {
 func TestTask_ConcurrentStatusUpdates(t *testing.T) {
 	// Arrange
 	manager := NewManager()
-	task := manager.CreateTask("/test/path")
+	task := manager.CreateTask("task-id", "/test/path")
 	const numGoroutines = 50
 	var wg sync.WaitGroup
 
@@ -395,7 +395,7 @@ func TestTask_ConcurrentStatusUpdates(t *testing.T) {
 func TestTask_ContextCancellation(t *testing.T) {
 	// Arrange
 	manager := NewManager()
-	task := manager.CreateTask("/test/path")
+	task := manager.CreateTask("task-id", "/test/path")
 
 	// 启动一个goroutine监听context取消
 	done := make(chan bool)

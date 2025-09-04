@@ -150,6 +150,50 @@ go test -json ./... > test_output.json
 ### 4. 通过 MCP 客户端使用
 使用支持 MCP 协议的客户端（如 Claude Desktop）连接到服务器，然后使用提供的工具进行测试日志分析。
 
+## MCP 集成配置
+
+要在其他工具中使用此 MCP 服务器，请参考以下配置示例：
+
+### 基本配置示例
+
+```json
+{
+  "mcpServers": {
+    "go-test-reader": {
+      "command": "go",
+      "args": [
+        "run",
+        "main.go"
+      ],
+      "cwd": "/path/to/go_test_reader",
+      "env": {
+        "GO111MODULE": "on"
+      }
+    }
+  }
+}
+```
+
+### 使用编译后的可执行文件
+
+```bash
+# 首先编译项目
+go build -o go_test_reader
+```
+
+```json
+{
+  "mcpServers": {
+    "go-test-reader": {
+      "command": "./go_test_reader",
+      "args": []
+    }
+  }
+}
+```
+
+更多详细的配置选项和使用说明，请参考 [MCP_INTEGRATION.md](MCP_INTEGRATION.md) 文件。
+
 ## 技术特性
 
 ### 并发处理

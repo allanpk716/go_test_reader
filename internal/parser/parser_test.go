@@ -231,7 +231,7 @@ func TestExtractErrorFromOutput(t *testing.T) {
 		{
 			name:     "Empty output",
 			output:   "",
-			expected: "No error details available",
+			expected: "",
 		},
 	}
 

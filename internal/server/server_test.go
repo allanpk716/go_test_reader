@@ -10,7 +10,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/allanpk716/go_test_reader/internal/parser"
-	"github.com/allanpk716/go_test_reader/internal/task"
+	taskpkg "github.com/allanpk716/go_test_reader/internal/task"
 )
 
 // TestNewMCPServer 测试MCP服务器创建
@@ -143,7 +143,7 @@ func TestMCPServer_HandleUploadTestLog_NonExistentFile(t *testing.T) {
 	if task == nil {
 		t.Fatal("Expected task to exist")
 	}
-	if task.Status != task.StatusFailed {
+	if task.Status != taskpkg.StatusFailed {
 		t.Errorf("Expected task status to be failed, got %s", task.Status)
 	}
 }
@@ -157,7 +157,7 @@ func TestMCPServer_HandleGetAnalysisResult_ValidTask(t *testing.T) {
 	}
 
 	// 创建并设置任务结果
-	task := server.taskManager.CreateTask("/test/path")
+	task := server.taskManager.CreateTask("test-task-1", "/test/path")
 	testResult := &parser.TestResult{
 		TotalTests:  3,
 		PassedTests: 2,
@@ -188,8 +188,8 @@ func TestMCPServer_HandleGetAnalysisResult_ValidTask(t *testing.T) {
 	}
 
 	meta := result.Meta
-	if meta["status"] != string(task.StatusCompleted) {
-		t.Errorf("Expected status=%s, got %v", task.StatusCompleted, meta["status"])
+	if meta["status"] != string(taskpkg.StatusCompleted) {
+		t.Errorf("Expected status=%s, got %v", taskpkg.StatusCompleted, meta["status"])
 	}
 }
 
@@ -263,7 +263,7 @@ func TestMCPServer_HandleTerminateTask_ValidTask(t *testing.T) {
 		t.Fatalf("Failed to create server: %v", err)
 	}
 
-	task := server.taskManager.CreateTask("/test/path")
+	task := server.taskManager.CreateTask("test-task-2", "/test/path")
 	task.SetRunning()
 
 	ctx := context.Background()
@@ -297,7 +297,7 @@ func TestMCPServer_HandleTerminateTask_ValidTask(t *testing.T) {
 	}
 
 	// 验证任务确实被取消
-	if task.Status != task.StatusCanceled {
+	if task.Status != taskpkg.StatusCanceled {
 		t.Errorf("Expected task status to be canceled, got %s", task.Status)
 	}
 }
@@ -341,7 +341,7 @@ func TestMCPServer_HandleGetTestDetails_ValidTest(t *testing.T) {
 		t.Fatalf("Failed to create server: %v", err)
 	}
 
-	task := server.taskManager.CreateTask("/test/path")
+	task := server.taskManager.CreateTask("test-task-3", "/test/path")
 	testDetails := map[string]*parser.TestDetail{
 		"TestExample": {
 			Status:  "pass",
@@ -454,14 +454,14 @@ func TestMCPServer_ProcessTestLog_ValidFile(t *testing.T) {
 	tempFile := createTempTestFile(t, validTestLogContent())
 	defer os.Remove(tempFile)
 
-	task := server.taskManager.CreateTask(tempFile)
+	task := server.taskManager.CreateTask("test-task-4", tempFile)
 	ctx := context.Background()
 
 	// Act
 	server.processTestLog(ctx, task)
 
 	// Assert
-	if task.Status != task.StatusCompleted {
+	if task.Status != taskpkg.StatusCompleted {
 		t.Errorf("Expected task status to be completed, got %s", task.Status)
 	}
 	if task.Result == nil {
@@ -480,14 +480,14 @@ func TestMCPServer_ProcessTestLog_InvalidFile(t *testing.T) {
 		t.Fatalf("Failed to create server: %v", err)
 	}
 
-	task := server.taskManager.CreateTask("/non/existent/file.json")
+	task := server.taskManager.CreateTask("test-task-5", "/non/existent/file.json")
 	ctx := context.Background()
 
 	// Act
 	server.processTestLog(ctx, task)
 
 	// Assert
-	if task.Status != task.StatusFailed {
+	if task.Status != taskpkg.StatusFailed {
 		t.Errorf("Expected task status to be failed, got %s", task.Status)
 	}
 	if task.Error == nil {
