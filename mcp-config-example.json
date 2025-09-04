@@ -1,0 +1,43 @@
+{
+  "mcpServers": {
+    "go-test-reader": {
+      "command": "go",
+      "args": [
+        "run",
+        "main.go"
+      ],
+      "cwd": "c:\\WorkSpace\\Go2Hell\\src\\github.com\\allanpk716\\go_test_reader",
+      "env": {
+        "GO111MODULE": "on",
+        "GOPROXY": "https://proxy.golang.org,direct",
+        "GOSUMDB": "sum.golang.org"
+      }
+    }
+  }
+}
+
+// 使用编译后的可执行文件的配置（推荐用于生产环境）：
+// 首先运行: go build -o go_test_reader.exe
+// 然后使用以下配置：
+/*
+{
+  "mcpServers": {
+    "go-test-reader": {
+      "command": "go_test_reader.exe",
+      "args": [],
+      "cwd": "c:\\WorkSpace\\Go2Hell\\src\\github.com\\allanpk716\\go_test_reader"
+    }
+  }
+}
+*/
+
+// 可用的 MCP 工具：
+// 1. upload_test_log - 上传 go test -json 输出进行分析
+// 2. get_analysis_result - 获取分析结果
+// 3. terminate_task - 终止分析任务
+// 4. get_test_details - 获取特定测试的详细信息
+
+// 使用示例：
+// 1. 生成测试日志: go test -json ./... > test_results.json
+// 2. 使用 upload_test_log 上传文件
+// 3. 使用返回的 task_id 调用 get_analysis_result 查看结果
