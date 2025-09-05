@@ -1,0 +1,46 @@
+=== RUN   TestNewFileClient
+--- PASS: TestNewFileClient (0.00s)
+=== RUN   TestLogin_Success
+--- PASS: TestLogin_Success (0.00s)
+=== RUN   TestLogin_InvalidCredentials
+--- PASS: TestLogin_InvalidCredentials (0.00s)
+=== RUN   TestLogin_ServerError
+--- PASS: TestLogin_ServerError (0.00s)
+=== RUN   TestCalculateFileHash
+--- PASS: TestCalculateFileHash (0.00s)
+=== RUN   TestCalculateFileHash_FileNotFound
+--- PASS: TestCalculateFileHash_FileNotFound (0.00s)
+=== RUN   TestMakeAuthenticatedRequest
+--- PASS: TestMakeAuthenticatedRequest (0.00s)
+=== RUN   TestDownload_Success
+--- PASS: TestDownload_Success (0.00s)
+=== RUN   TestDownload_FileNotFound
+--- PASS: TestDownload_FileNotFound (0.00s)
+=== RUN   TestCreateNewDownload
+--- PASS: TestCreateNewDownload (0.00s)
+=== RUN   TestDownloadChunk_Success
+--- PASS: TestDownloadChunk_Success (0.00s)
+=== RUN   TestDownloadChunk_Retry
+--- PASS: TestDownloadChunk_Retry (3.00s)
+=== RUN   TestLoadDownloadState
+--- PASS: TestLoadDownloadState (0.00s)
+=== RUN   TestSaveDownloadState
+--- PASS: TestSaveDownloadState (0.00s)
+=== RUN   TestPerformDownload_LargeFile
+--- PASS: TestPerformDownload_LargeFile (0.01s)
+=== RUN   TestUpload_Success
+--- PASS: TestUpload_Success (0.03s)
+=== RUN   TestUpload_FileNotFound
+--- PASS: TestUpload_FileNotFound (0.00s)
+=== RUN   TestCreateNewUpload
+--- PASS: TestCreateNewUpload (0.00s)
+=== RUN   TestUploadChunk_Success
+--- PASS: TestUploadChunk_Success (0.00s)
+=== RUN   TestUploadChunk_Retry
+--- PASS: TestUploadChunk_Retry (3.00s)
+=== RUN   TestLoadUploadState
+--- PASS: TestLoadUploadState (0.00s)
+=== RUN   TestSaveUploadState
+--- PASS: TestSaveUploadState (0.00s)
+PASS
+ok      github.com/UritMedical/lingxi.stroe/internal/client/client      (cached)

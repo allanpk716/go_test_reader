@@ -1,0 +1,20 @@
+=== RUN   TestUploadState_JSONSerialization
+--- PASS: TestUploadState_JSONSerialization (0.00s)
+=== RUN   TestDownloadState_JSONSerialization
+--- PASS: TestDownloadState_JSONSerialization (0.00s)
+=== RUN   TestDownloadState_EmptyValues
+--- PASS: TestDownloadState_EmptyValues (0.00s)
+=== RUN   TestUploadState_LargeValues
+--- PASS: TestUploadState_LargeValues (0.00s)
+=== RUN   TestDownloadState_LargeValues
+--- PASS: TestDownloadState_LargeValues (0.00s)
+=== RUN   TestUploadCallbacks_FunctionPointers
+--- PASS: TestUploadCallbacks_FunctionPointers (0.00s)
+=== RUN   TestDownloadCallbacks_FunctionPointers
+--- PASS: TestDownloadCallbacks_FunctionPointers (0.00s)
+=== RUN   TestCallbacks_NilFunctions
+    types_test.go:400: Nil callback functions handled correctly
+--- PASS: TestCallbacks_NilFunctions (0.00s)
+PASS
+ok      github.com/UritMedical/lingxi.stroe/internal/client/models      (cached)
+FAIL

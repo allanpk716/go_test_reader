@@ -1,0 +1,48 @@
+# github.com/UritMedical/lingxi.stroe/internal/client [github.com/UritMedical/lingxi.stroe/internal/client.test]
+internal\client\integration_test.go:278:36: not enough arguments in call to fileClient.Upload
+        have (string, models.UploadCallbacks)
+        want (string, models.UploadCallbacks, *models.FileUploadMetadata)
+internal\client\integration_test.go:391:36: not enough arguments in call to fileClient.Upload
+        have (string, models.UploadCallbacks)
+        want (string, models.UploadCallbacks, *models.FileUploadMetadata)
+internal\client\integration_test.go:461:63: not enough arguments in call to clients[clientIndex].Upload
+        have (string, models.UploadCallbacks)
+        want (string, models.UploadCallbacks, *models.FileUploadMetadata)
+internal\client\integration_test.go:502:52: not enough arguments in call to fileClient.Upload
+        have (string, models.UploadCallbacks)
+        want (string, models.UploadCallbacks, *models.FileUploadMetadata)
+internal\client\integration_test.go:528:51: not enough arguments in call to fileClient.Upload
+        have (string, models.UploadCallbacks)
+        want (string, models.UploadCallbacks, *models.FileUploadMetadata)
+# github.com/UritMedical/lingxi.stroe/internal/client/client [github.com/UritMedical/lingxi.stroe/internal/client/client.test]
+internal\client\client\upload_test.go:82:32: not enough arguments in call to client.Upload
+        have (string, models.UploadCallbacks)
+        want (string, models.UploadCallbacks, *models.FileUploadMetadata)
+internal\client\client\upload_test.go:111:48: not enough arguments in call to client.Upload
+        have (string, models.UploadCallbacks)
+        want (string, models.UploadCallbacks, *models.FileUploadMetadata)
+internal\client\client\upload_test.go:164:55: not enough arguments in call to client.createNewUpload
+        have (string, string)
+        want (string, string, *models.FileUploadMetadata)
+FAIL    github.com/UritMedical/lingxi.stroe/internal/client [build failed]
+FAIL    github.com/UritMedical/lingxi.stroe/internal/client/client [build failed]
+=== RUN   TestUploadState_JSONSerialization
+--- PASS: TestUploadState_JSONSerialization (0.00s)
+=== RUN   TestDownloadState_JSONSerialization
+--- PASS: TestDownloadState_JSONSerialization (0.00s)
+=== RUN   TestDownloadState_EmptyValues
+--- PASS: TestDownloadState_EmptyValues (0.00s)
+=== RUN   TestUploadState_LargeValues
+--- PASS: TestUploadState_LargeValues (0.00s)
+=== RUN   TestDownloadState_LargeValues
+--- PASS: TestDownloadState_LargeValues (0.00s)
+=== RUN   TestUploadCallbacks_FunctionPointers
+--- PASS: TestUploadCallbacks_FunctionPointers (0.00s)
+=== RUN   TestDownloadCallbacks_FunctionPointers
+--- PASS: TestDownloadCallbacks_FunctionPointers (0.00s)
+=== RUN   TestCallbacks_NilFunctions
+    types_test.go:400: Nil callback functions handled correctly
+--- PASS: TestCallbacks_NilFunctions (0.00s)
+PASS
+ok      github.com/UritMedical/lingxi.stroe/internal/client/models      0.031s
+FAIL

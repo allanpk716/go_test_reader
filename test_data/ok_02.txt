@@ -1,0 +1,25 @@
+=== RUN   TestIntegration_FullUploadDownloadCycle
+    integration_test.go:265: Upload progress: 74/74 bytes (100.00%)
+    integration_test.go:270: Upload completed: fileID=c05a455a1fbb895a433085265a8f6365665174ef9a646276cfb011079fb38b16, size=74 bytes
+    integration_test.go:308: Download progress: 74/74 bytes (100.00%)
+    integration_test.go:313: Download completed: fileID=c05a455a1fbb895a433085265a8f6365665174ef9a646276cfb011079fb38b16, 
+size=74 bytes
+    integration_test.go:343: Integration test completed successfully
+--- PASS: TestIntegration_FullUploadDownloadCycle (0.01s)
+=== RUN   TestIntegration_LargeFileUploadDownload
+    integration_test.go:389: Large file upload completed: fileID=34724dfef5e3dee9f8ab63a50c35d236e078873bb8fd4e02c6b5dae0308d9a2d, size=5242860 bytes
+    integration_test.go:410: Large file upload took 70.3883ms, progress callbacks: 5
+--- PASS: TestIntegration_LargeFileUploadDownload (0.08s)
+=== RUN   TestIntegration_ConcurrentOperations
+    integration_test.go:465: Concurrent upload 0 completed: fileID=110dddb59528588233d9dd471433225d9d9f41efe3a10f96f4c651f1e22e6e63
+    integration_test.go:465: Concurrent upload 2 completed: fileID=6e5d0759ec71f4431456683549298e8162bfc4cd443369f7bbe7a48c212533eb
+    integration_test.go:465: Concurrent upload 1 completed: fileID=9097108e3f22c2a9a7c9e2387ca219c28437e275115eaf5a2c24b49352bfa32b
+    integration_test.go:508: All 3 concurrent uploads completed successfully
+--- PASS: TestIntegration_ConcurrentOperations (0.02s)
+=== RUN   TestIntegration_ErrorHandling
+    integration_test.go:542: Expected error received: open /nonexistent/file.txt: The system cannot find the path specified.
+    integration_test.go:560: Expected download error received: file not found: 404 Not Found
+    integration_test.go:573: Error handling test completed successfully
+--- PASS: TestIntegration_ErrorHandling (0.00s)
+PASS
+ok      github.com/UritMedical/lingxi.stroe/internal/client     0.180s
