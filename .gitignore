@@ -1,1 +1,6 @@
 /*.exe
+/coverage
+/encoding_coverage
+/encoding_full_coverage
+/parser_full_coverage
+*.out

@@ -4,67 +4,51 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 
-	"github.com/google/uuid"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/allanpk716/go_test_reader/internal/parser"
-	"github.com/allanpk716/go_test_reader/internal/task"
 )
 
 // MCPServer MCP 服务器实例
 type MCPServer struct {
-	server      *mcp.Server
-	taskManager *task.Manager
-	mu          sync.RWMutex
+	server *mcp.Server
 }
 
-// UploadRequest 上传请求参数
-type UploadRequest struct {
+// AnalyzeTestLogRequest 分析测试日志请求参数
+type AnalyzeTestLogRequest struct {
 	FilePath string `json:"file_path"`
 }
 
-// UploadResponse 上传响应
-type UploadResponse struct {
-	TaskID  string `json:"task_id"`
-	Status  string `json:"status"`
-	Message string `json:"message"`
+// TestOverviewResponse 测试总览响应
+type TestOverviewResponse struct {
+	AllTestsPassed   bool     `json:"all_tests_passed"`
+	TotalTests       int      `json:"total_tests"`
+	FailedTestsCount int      `json:"failed_tests_count"`
+	FailedTestNames  []string `json:"failed_test_names"`
 }
 
-// QueryRequest 查询请求参数
-type QueryRequest struct {
-	TaskID string `json:"task_id"`
-}
-
-// TerminateRequest 终止请求参数
-type TerminateRequest struct {
-	TaskID string `json:"task_id"`
-}
-
-// TerminateResponse 终止响应
-type TerminateResponse struct {
-	TaskID  string `json:"task_id"`
-	Status  string `json:"status"`
-	Message string `json:"message"`
-}
-
-// TestDetailsRequest 测试详情请求参数
-type TestDetailsRequest struct {
-	TaskID   string `json:"task_id"`
+// GetTestDetailsRequest 获取测试详情请求参数
+type GetTestDetailsRequest struct {
+	FilePath string `json:"file_path"`
 	TestName string `json:"test_name"`
+}
+
+// TestDetailsResponse 测试详情响应
+type TestDetailsResponse struct {
+	TestName string `json:"test_name"`
+	Status   string `json:"status"`
+	Output   string `json:"output"`
+	Error    string `json:"error"`
+	Elapsed  float64 `json:"elapsed"`
 }
 
 // NewMCPServer 创建新的 MCP 服务器
 func NewMCPServer() (*MCPServer, error) {
-	// 创建任务管理器
-	taskManager := task.NewManager()
-	
 	// 创建 MCP 服务器
 	server := mcp.NewServer("go-test-reader", "1.0.0", nil)
 	
 	mcpServer := &MCPServer{
-		server:      server,
-		taskManager: taskManager,
+		server: server,
 	}
 	
 	// 注册工具
@@ -81,98 +65,69 @@ func (s *MCPServer) Run(ctx context.Context) error {
 
 // registerTools 注册 MCP 工具
 func (s *MCPServer) registerTools() {
-	// 注册文件上传工具
-	uploadTool := mcp.NewServerTool(
-		"upload_test_log",
-		"上传 go test -json 输出的测试日志文件进行分析",
-		s.handleUploadTestLog,
-	)
-	
-	// 注册查询结果工具
-	queryTool := mcp.NewServerTool(
-		"get_analysis_result",
-		"根据任务ID获取分析结果",
-		s.handleGetAnalysisResult,
-	)
-	
-	// 注册任务终止工具
-	terminateTool := mcp.NewServerTool(
-		"terminate_task",
-		"终止指定的分析任务",
-		s.handleTerminateTask,
+	// 注册测试日志分析工具
+	analyzeTool := mcp.NewServerTool(
+		"analyze_test_log",
+		"分析 go test 输出的测试日志文件，返回测试总览信息",
+		s.handleAnalyzeTestLog,
 	)
 	
 	// 注册测试详情查询工具
 	detailsTool := mcp.NewServerTool(
 		"get_test_details",
-		"根据任务ID和测试名称获取详细错误信息",
+		"根据文件路径和测试名称获取详细错误信息",
 		s.handleGetTestDetails,
 	)
 	
 	// 添加工具到服务器
-	s.server.AddTools(uploadTool, queryTool, terminateTool, detailsTool)
+	s.server.AddTools(analyzeTool, detailsTool)
 }
 
-// handleUploadTestLog 处理文件上传
-func (s *MCPServer) handleUploadTestLog(ctx context.Context, session *mcp.ServerSession, params *mcp.CallToolParamsFor[UploadRequest]) (*mcp.CallToolResultFor[UploadResponse], error) {
+// handleAnalyzeTestLog 处理测试日志分析
+func (s *MCPServer) handleAnalyzeTestLog(ctx context.Context, session *mcp.ServerSession, params *mcp.CallToolParamsFor[AnalyzeTestLogRequest]) (*mcp.CallToolResultFor[TestOverviewResponse], error) {
 	filePath := params.Arguments.FilePath
 	if filePath == "" {
 		return nil, fmt.Errorf("file_path parameter is required")
 	}
 	
-	// 生成任务ID
-	taskID := uuid.New().String()
+	// 打开文件
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
 	
-	// 创建并启动分析任务
-	task := s.taskManager.CreateTask(taskID, filePath)
-	go s.processTestLog(ctx, task)
-	
-	response := UploadResponse{
-		TaskID:  taskID,
-		Status:  "started",
-		Message: "测试日志分析任务已启动",
+	// 解析测试日志
+	result, err := s.parseTestLogWithAutoDetection(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse test log: %w", err)
 	}
 	
-	return &mcp.CallToolResultFor[UploadResponse]{
+	// 构建响应
+	allTestsPassed := result.FailedTests == 0
+	response := TestOverviewResponse{
+		AllTestsPassed:   allTestsPassed,
+		TotalTests:       result.TotalTests,
+		FailedTestsCount: result.FailedTests,
+		FailedTestNames:  result.FailedTestNames,
+	}
+	
+	return &mcp.CallToolResultFor[TestOverviewResponse]{
 		Content: []mcp.Content{
 			&mcp.TextContent{
-				Text: fmt.Sprintf("任务已创建，ID: %s", taskID),
+				Text: fmt.Sprintf("测试分析完成：总计 %d 个测试，%d 个失败", result.TotalTests, result.FailedTests),
 			},
 		},
 		Meta: mcp.Meta{
-			"task_id": response.TaskID,
-			"status":  response.Status,
-			"message": response.Message,
+			"all_tests_passed":   response.AllTestsPassed,
+			"total_tests":        response.TotalTests,
+			"failed_tests_count": response.FailedTestsCount,
+			"failed_test_names":  response.FailedTestNames,
 		},
 	}, nil
 }
 
-// processTestLog 处理测试日志文件
-func (s *MCPServer) processTestLog(ctx context.Context, task *task.Task) {
-	defer func() {
-		if r := recover(); r != nil {
-			task.SetError(fmt.Errorf("panic: %v", r))
-		}
-	}()
-	
-	// 打开文件
-	file, err := os.Open(task.FilePath)
-	if err != nil {
-		task.SetError(fmt.Errorf("failed to open file: %w", err))
-		return
-	}
-	defer file.Close()
-	
-	// 自动检测文件格式并选择合适的解析器
-	result, err := s.parseTestLogWithAutoDetection(file)
-	if err != nil {
-		task.SetError(fmt.Errorf("failed to parse test log: %w", err))
-		return
-	}
-	
-	// 设置结果
-	task.SetResult(result)
-}
+
 
 // parseTestLogWithAutoDetection 自动检测文件格式并解析
 func (s *MCPServer) parseTestLogWithAutoDetection(file *os.File) (*parser.TestResult, error) {
@@ -196,67 +151,13 @@ func (s *MCPServer) parseTestLogWithAutoDetection(file *os.File) (*parser.TestRe
 	return nil, fmt.Errorf("file does not appear to be valid go test output (neither JSON nor text format)")
 }
 
-// handleGetAnalysisResult 获取分析结果
-func (s *MCPServer) handleGetAnalysisResult(ctx context.Context, session *mcp.ServerSession, params *mcp.CallToolParamsFor[QueryRequest]) (*mcp.CallToolResultFor[map[string]interface{}], error) {
-	taskID := params.Arguments.TaskID
-	if taskID == "" {
-		return nil, fmt.Errorf("task_id parameter is required")
-	}
-	
-	task := s.taskManager.GetTask(taskID)
-	if task == nil {
-		return nil, fmt.Errorf("task not found: %s", taskID)
-	}
-	
-	status := task.GetStatus()
-	
-	return &mcp.CallToolResultFor[map[string]interface{}]{
-		Content: []mcp.Content{
-			&mcp.TextContent{
-				Text: fmt.Sprintf("任务 %s 状态: %s", taskID, status["status"]),
-			},
-		},
-		Meta: mcp.Meta(status),
-	}, nil
-}
 
-// handleTerminateTask 终止任务
-func (s *MCPServer) handleTerminateTask(ctx context.Context, session *mcp.ServerSession, params *mcp.CallToolParamsFor[TerminateRequest]) (*mcp.CallToolResultFor[TerminateResponse], error) {
-	taskID := params.Arguments.TaskID
-	if taskID == "" {
-		return nil, fmt.Errorf("task_id parameter is required")
-	}
-	
-	err := s.taskManager.TerminateTask(taskID)
-	if err != nil {
-		return nil, err
-	}
-	
-	response := TerminateResponse{
-		TaskID:  taskID,
-		Status:  "terminated",
-		Message: "任务已终止",
-	}
-	
-	return &mcp.CallToolResultFor[TerminateResponse]{
-		Content: []mcp.Content{
-			&mcp.TextContent{
-				Text: fmt.Sprintf("任务 %s 已终止", taskID),
-			},
-		},
-		Meta: mcp.Meta{
-			"task_id": response.TaskID,
-			"status":  response.Status,
-			"message": response.Message,
-		},
-	}, nil
-}
 
 // handleGetTestDetails 获取测试详情
-func (s *MCPServer) handleGetTestDetails(ctx context.Context, session *mcp.ServerSession, params *mcp.CallToolParamsFor[TestDetailsRequest]) (*mcp.CallToolResultFor[map[string]interface{}], error) {
-	taskID := params.Arguments.TaskID
-	if taskID == "" {
-		return nil, fmt.Errorf("task_id parameter is required")
+func (s *MCPServer) handleGetTestDetails(ctx context.Context, session *mcp.ServerSession, params *mcp.CallToolParamsFor[GetTestDetailsRequest]) (*mcp.CallToolResultFor[TestDetailsResponse], error) {
+	filePath := params.Arguments.FilePath
+	if filePath == "" {
+		return nil, fmt.Errorf("file_path parameter is required")
 	}
 	
 	testName := params.Arguments.TestName
@@ -264,22 +165,46 @@ func (s *MCPServer) handleGetTestDetails(ctx context.Context, session *mcp.Serve
 		return nil, fmt.Errorf("test_name parameter is required")
 	}
 	
-	task := s.taskManager.GetTask(taskID)
-	if task == nil {
-		return nil, fmt.Errorf("task not found: %s", taskID)
+	// 打开文件
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+	
+	// 解析测试日志
+	result, err := s.parseTestLogWithAutoDetection(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse test log: %w", err)
 	}
 	
-	details := task.GetTestDetails(testName)
-	if details == nil {
+	// 查找指定的测试详情
+	testDetail, exists := result.TestDetails[testName]
+	if !exists {
 		return nil, fmt.Errorf("test not found: %s", testName)
 	}
 	
-	return &mcp.CallToolResultFor[map[string]interface{}]{
+	// 构建响应
+	response := TestDetailsResponse{
+		TestName: testName,
+		Status:   testDetail.Status,
+		Output:   testDetail.Output,
+		Error:    testDetail.Error,
+		Elapsed:  testDetail.Elapsed,
+	}
+	
+	return &mcp.CallToolResultFor[TestDetailsResponse]{
 		Content: []mcp.Content{
 			&mcp.TextContent{
 				Text: fmt.Sprintf("测试 %s 的详细信息", testName),
 			},
 		},
-		Meta: mcp.Meta(details),
+		Meta: mcp.Meta{
+			"test_name": response.TestName,
+			"status":    response.Status,
+			"output":    response.Output,
+			"error":     response.Error,
+			"elapsed":   response.Elapsed,
+		},
 	}, nil
 }

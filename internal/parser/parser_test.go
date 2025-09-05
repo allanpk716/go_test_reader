@@ -46,6 +46,17 @@ func TestParseTestLog_ValidInput(t *testing.T) {
 	if len(result.Packages) != 1 || result.Packages[0] != "example/pkg" {
 		t.Errorf("Expected Packages=[example/pkg], got %v", result.Packages)
 	}
+	// 验证测试详情
+	if detail, exists := result.TestDetails["TestExample1"]; !exists {
+		t.Error("Expected TestExample1 in TestDetails")
+	} else if detail.Status != "pass" {
+		t.Errorf("Expected status=pass, got %s", detail.Status)
+	}
+	if detail, exists := result.TestDetails["TestExample2"]; !exists {
+		t.Error("Expected TestExample2 in TestDetails")
+	} else if detail.Status != "fail" {
+		t.Errorf("Expected status=fail, got %s", detail.Status)
+	}
 }
 
 // TestParseTestLog_EmptyInput 测试空输入
@@ -68,6 +79,9 @@ func TestParseTestLog_EmptyInput(t *testing.T) {
 	}
 	if len(result.TestDetails) != 0 {
 		t.Errorf("Expected empty TestDetails, got %v", result.TestDetails)
+	}
+	if len(result.Packages) != 0 {
+		t.Errorf("Expected empty Packages, got %v", result.Packages)
 	}
 }
 
@@ -345,6 +359,17 @@ ok      example/pkg     0.001s`
 	if len(result.Packages) != 1 || result.Packages[0] != "example/pkg" {
 		t.Errorf("Expected Packages=[example/pkg], got %v", result.Packages)
 	}
+	// 验证测试详情
+	if detail, exists := result.TestDetails["TestExample1"]; !exists {
+		t.Error("Expected TestExample1 in TestDetails")
+	} else if detail.Status != "pass" {
+		t.Errorf("Expected status=pass, got %s", detail.Status)
+	}
+	if detail, exists := result.TestDetails["TestExample2"]; !exists {
+		t.Error("Expected TestExample2 in TestDetails")
+	} else if detail.Status != "fail" {
+		t.Errorf("Expected status=fail, got %s", detail.Status)
+	}
 }
 
 // TestParseTestTextLog_BuildFailure 测试编译失败的解析
@@ -442,5 +467,119 @@ just random content`
 	}
 	if !strings.Contains(err.Error(), "does not appear to be go test text output") {
 		t.Errorf("Expected format error, got %v", err)
+	}
+}
+
+// TestParseTestTextLog_EmptyInput 测试文本格式空输入
+func TestParseTestTextLog_EmptyInput(t *testing.T) {
+	// Arrange
+	reader := strings.NewReader("")
+
+	// Act
+	result, err := ParseTestTextLog(reader)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if result == nil {
+		t.Fatal("Expected result, got nil")
+	}
+	if result.TotalTests != 0 {
+		t.Errorf("Expected TotalTests=0, got %d", result.TotalTests)
+	}
+}
+
+// TestParseTestTextLog_SkippedTests 测试文本格式跳过的测试
+func TestParseTestTextLog_SkippedTests(t *testing.T) {
+	// Arrange
+	testInput := `=== RUN   TestSkipped
+--- SKIP: TestSkipped (0.00s)
+    test_file.go:5: Skipping this test
+PASS
+ok      example/pkg     0.001s`
+	reader := strings.NewReader(testInput)
+
+	// Act
+	result, err := ParseTestTextLog(reader)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if result.SkippedTests != 1 {
+		t.Errorf("Expected SkippedTests=1, got %d", result.SkippedTests)
+	}
+	if len(result.SkippedTestNames) != 1 || result.SkippedTestNames[0] != "TestSkipped" {
+		t.Errorf("Expected SkippedTestNames=[TestSkipped], got %v", result.SkippedTestNames)
+	}
+}
+
+// TestParseTestTextLog_NoPackageInfo 测试没有包信息的文本格式
+func TestParseTestTextLog_NoPackageInfo(t *testing.T) {
+	// Arrange
+	testInput := `=== RUN   TestExample
+--- PASS: TestExample (0.00s)
+PASS`
+	reader := strings.NewReader(testInput)
+
+	// Act
+	result, err := ParseTestTextLog(reader)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if result.TotalTests != 1 {
+		t.Errorf("Expected TotalTests=1, got %d", result.TotalTests)
+	}
+	if result.PassedTests != 1 {
+		t.Errorf("Expected PassedTests=1, got %d", result.PassedTests)
+	}
+}
+
+// TestValidateTestTextLog_EmptyInput 测试文本格式空输入验证
+func TestValidateTestTextLog_EmptyInput(t *testing.T) {
+	// Arrange
+	reader := strings.NewReader("")
+
+	// Act
+	err := ValidateTestTextLog(reader)
+
+	// Assert
+	if err == nil {
+		t.Error("Expected error for empty input, got nil")
+	}
+	if !strings.Contains(err.Error(), "file is empty") {
+		t.Errorf("Expected 'file is empty' error, got %v", err)
+	}
+}
+
+// TestParseTestTextLog_BenchmarkTests 测试基准测试解析
+func TestParseTestTextLog_BenchmarkTests(t *testing.T) {
+	// Arrange
+	testInput := `=== RUN   TestExample
+--- PASS: TestExample (0.00s)
+=== RUN   BenchmarkExample
+--- BENCH: BenchmarkExample-8
+BenchmarkExample-8   	1000000	      1000 ns/op
+--- PASS: BenchmarkExample-8 (1.00s)
+PASS
+ok      example/pkg     1.001s`
+	reader := strings.NewReader(testInput)
+
+	// Act
+	result, err := ParseTestTextLog(reader)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	// 基准测试也被计算为测试，所以应该是2个测试
+	if result.TotalTests != 2 {
+		t.Errorf("Expected TotalTests=2, got %d", result.TotalTests)
+	}
+	if result.PassedTests != 2 {
+		t.Errorf("Expected PassedTests=2, got %d", result.PassedTests)
 	}
 }
