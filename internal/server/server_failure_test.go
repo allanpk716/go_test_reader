@@ -138,10 +138,7 @@ func TestMCPServer_FailureScenarios_FileSystemErrors(t *testing.T) {
 			setup: func() string {
 				tempFile := createTempTestFileForFailure(nil, validTestLogContent())
 				// 文件创建后立即删除，模拟处理过程中文件被删除的情况
-				go func() {
-					time.Sleep(50 * time.Millisecond)
-					os.Remove(tempFile)
-				}()
+				os.Remove(tempFile)
 				return tempFile
 			},
 			cleanup: func(path string) { os.Remove(path) }, // 确保清理

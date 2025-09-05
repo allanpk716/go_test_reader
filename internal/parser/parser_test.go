@@ -304,3 +304,143 @@ func TestParseTestLog_ConcurrentAccess(t *testing.T) {
 		}
 	}
 }
+
+// TestParseTestTextLog_ValidInput 测试文本格式有效输入的解析
+func TestParseTestTextLog_ValidInput(t *testing.T) {
+	// Arrange
+	testInput := `=== RUN   TestExample1
+--- PASS: TestExample1 (0.00s)
+=== RUN   TestExample2
+    test_file.go:10: This is a test failure
+--- FAIL: TestExample2 (0.00s)
+PASS
+ok      example/pkg     0.001s`
+	reader := strings.NewReader(testInput)
+
+	// Act
+	result, err := ParseTestTextLog(reader)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if result == nil {
+		t.Fatal("Expected result, got nil")
+	}
+	if result.TotalTests != 2 {
+		t.Errorf("Expected TotalTests=2, got %d", result.TotalTests)
+	}
+	if result.PassedTests != 1 {
+		t.Errorf("Expected PassedTests=1, got %d", result.PassedTests)
+	}
+	if result.FailedTests != 1 {
+		t.Errorf("Expected FailedTests=1, got %d", result.FailedTests)
+	}
+	if len(result.PassedTestNames) != 1 || result.PassedTestNames[0] != "TestExample1" {
+		t.Errorf("Expected PassedTestNames=[TestExample1], got %v", result.PassedTestNames)
+	}
+	if len(result.FailedTestNames) != 1 || result.FailedTestNames[0] != "TestExample2" {
+		t.Errorf("Expected FailedTestNames=[TestExample2], got %v", result.FailedTestNames)
+	}
+	if len(result.Packages) != 1 || result.Packages[0] != "example/pkg" {
+		t.Errorf("Expected Packages=[example/pkg], got %v", result.Packages)
+	}
+}
+
+// TestParseTestTextLog_BuildFailure 测试编译失败的解析
+func TestParseTestTextLog_BuildFailure(t *testing.T) {
+	// Arrange
+	testInput := `internal\client\integration_test.go:278:36: not enough arguments in call to fileClient.Upload
+        have (string, models.UploadCallbacks)
+        want (string, models.UploadCallbacks, *models.FileUploadMetadata)
+FAIL    github.com/UritMedical/lingxi.stroe/internal/client [build failed]`
+	reader := strings.NewReader(testInput)
+
+	// Act
+	result, err := ParseTestTextLog(reader)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if result.FailedTests != 1 {
+		t.Errorf("Expected FailedTests=1, got %d", result.FailedTests)
+	}
+	if len(result.FailedTestNames) != 1 || result.FailedTestNames[0] != "BuildError" {
+		t.Errorf("Expected FailedTestNames=[BuildError], got %v", result.FailedTestNames)
+	}
+	if len(result.Packages) != 1 || result.Packages[0] != "github.com/UritMedical/lingxi.stroe/internal/client" {
+		t.Errorf("Expected Packages=[github.com/UritMedical/lingxi.stroe/internal/client], got %v", result.Packages)
+	}
+}
+
+// TestParseTestTextLog_MixedResults 测试混合结果的解析
+func TestParseTestTextLog_MixedResults(t *testing.T) {
+	// Arrange
+	testInput := `=== RUN   TestUploadState_JSONSerialization
+--- PASS: TestUploadState_JSONSerialization (0.00s)
+=== RUN   TestDownloadState_JSONSerialization
+--- PASS: TestDownloadState_JSONSerialization (0.00s)
+=== RUN   TestCallbacks_NilFunctions
+    types_test.go:400: Nil callback functions handled correctly
+--- PASS: TestCallbacks_NilFunctions (0.00s)
+PASS
+ok      github.com/UritMedical/lingxi.stroe/internal/client/models      (cached)`
+	reader := strings.NewReader(testInput)
+
+	// Act
+	result, err := ParseTestTextLog(reader)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if result.TotalTests != 3 {
+		t.Errorf("Expected TotalTests=3, got %d", result.TotalTests)
+	}
+	if result.PassedTests != 3 {
+		t.Errorf("Expected PassedTests=3, got %d", result.PassedTests)
+	}
+	if result.FailedTests != 0 {
+		t.Errorf("Expected FailedTests=0, got %d", result.FailedTests)
+	}
+}
+
+// TestValidateTestTextLog_ValidFormat 测试有效文本格式的验证
+func TestValidateTestTextLog_ValidFormat(t *testing.T) {
+	// Arrange
+	testInput := `=== RUN   TestExample1
+--- PASS: TestExample1 (0.00s)
+PASS
+ok      example/pkg     0.001s`
+	reader := strings.NewReader(testInput)
+
+	// Act
+	err := ValidateTestTextLog(reader)
+
+	// Assert
+	if err != nil {
+		t.Errorf("Expected no error for valid format, got %v", err)
+	}
+}
+
+// TestValidateTestTextLog_InvalidFormat 测试无效文本格式的验证
+func TestValidateTestTextLog_InvalidFormat(t *testing.T) {
+	// Arrange
+	testInput := `random text line 1
+random text line 2
+no test patterns here
+just random content`
+	reader := strings.NewReader(testInput)
+
+	// Act
+	err := ValidateTestTextLog(reader)
+
+	// Assert
+	if err == nil {
+		t.Error("Expected error for invalid format, got nil")
+	}
+	if !strings.Contains(err.Error(), "does not appear to be go test text output") {
+		t.Errorf("Expected format error, got %v", err)
+	}
+}

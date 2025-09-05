@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -195,6 +197,202 @@ func extractErrorFromOutput(output string) string {
 	return "No error details available"
 }
 
+// ParseTestTextLog 解析 go test 普通文本输出
+func ParseTestTextLog(reader io.Reader) (*TestResult, error) {
+	result := &TestResult{
+		FailedTestNames:  make([]string, 0),
+		PassedTestNames:  make([]string, 0),
+		SkippedTestNames: make([]string, 0),
+		TestDetails:      make(map[string]*TestDetail),
+		Packages:         make([]string, 0),
+	}
+	
+	packageSet := make(map[string]bool)
+	currentTest := ""
+	currentOutput := make([]string, 0)
+	buildErrors := make([]string, 0)
+	
+	// 正则表达式模式
+	runPattern := regexp.MustCompile(`^=== RUN\s+(.+)$`)
+	passPattern := regexp.MustCompile(`^--- PASS:\s+(.+?)\s+\(([0-9.]+)s\)$`)
+	failPattern := regexp.MustCompile(`^--- FAIL:\s+(.+?)\s+\(([0-9.]+)s\)$`)
+	skipPattern := regexp.MustCompile(`^--- SKIP:\s+(.+?)\s+\(([0-9.]+)s\)$`)
+	okPattern := regexp.MustCompile(`^(ok|PASS)\s+(.+?)(?:\s+\(cached\))?(?:\s+([0-9.]+)s)?$`)
+	failPackagePattern := regexp.MustCompile(`^FAIL\s+(.+?)(?:\s+\[build failed\])?(?:\s+([0-9.]+)s)?$`)
+	buildErrorPattern := regexp.MustCompile(`^(.+?):\d+:\d+:\s+(.+)$`)
+	
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+		
+		if trimmed == "" {
+			continue
+		}
+		
+		// 检查是否是测试运行开始
+		if matches := runPattern.FindStringSubmatch(trimmed); matches != nil {
+			// 保存之前测试的输出
+			if currentTest != "" && len(currentOutput) > 0 {
+				if detail, exists := result.TestDetails[currentTest]; exists {
+					detail.Output = strings.Join(currentOutput, "\n")
+				}
+			}
+			
+			currentTest = matches[1]
+			currentOutput = make([]string, 0)
+			
+			// 创建测试详情
+			result.TestDetails[currentTest] = &TestDetail{
+				Status: "running",
+				Output: "",
+			}
+			continue
+		}
+		
+		// 检查测试通过
+		if matches := passPattern.FindStringSubmatch(trimmed); matches != nil {
+			testName := matches[1]
+			elapsed, _ := strconv.ParseFloat(matches[2], 64)
+			
+			result.PassedTests++
+			result.PassedTestNames = append(result.PassedTestNames, testName)
+			
+			if detail, exists := result.TestDetails[testName]; exists {
+				detail.Status = "pass"
+				detail.Elapsed = elapsed
+				detail.Output = strings.Join(currentOutput, "\n")
+			} else {
+				result.TestDetails[testName] = &TestDetail{
+					Status:  "pass",
+					Elapsed: elapsed,
+					Output:  strings.Join(currentOutput, "\n"),
+				}
+			}
+			currentTest = ""
+			currentOutput = make([]string, 0)
+			continue
+		}
+		
+		// 检查测试失败
+		if matches := failPattern.FindStringSubmatch(trimmed); matches != nil {
+			testName := matches[1]
+			elapsed, _ := strconv.ParseFloat(matches[2], 64)
+			
+			result.FailedTests++
+			result.FailedTestNames = append(result.FailedTestNames, testName)
+			
+			output := strings.Join(currentOutput, "\n")
+			errorMsg := extractErrorFromOutput(output)
+			
+			if detail, exists := result.TestDetails[testName]; exists {
+				detail.Status = "fail"
+				detail.Elapsed = elapsed
+				detail.Output = output
+				detail.Error = errorMsg
+			} else {
+				result.TestDetails[testName] = &TestDetail{
+					Status:  "fail",
+					Elapsed: elapsed,
+					Output:  output,
+					Error:   errorMsg,
+				}
+			}
+			currentTest = ""
+			currentOutput = make([]string, 0)
+			continue
+		}
+		
+		// 检查测试跳过
+		if matches := skipPattern.FindStringSubmatch(trimmed); matches != nil {
+			testName := matches[1]
+			elapsed, _ := strconv.ParseFloat(matches[2], 64)
+			
+			result.SkippedTests++
+			result.SkippedTestNames = append(result.SkippedTestNames, testName)
+			
+			if detail, exists := result.TestDetails[testName]; exists {
+				detail.Status = "skip"
+				detail.Elapsed = elapsed
+				detail.Output = strings.Join(currentOutput, "\n")
+			} else {
+				result.TestDetails[testName] = &TestDetail{
+					Status:  "skip",
+					Elapsed: elapsed,
+					Output:  strings.Join(currentOutput, "\n"),
+				}
+			}
+			currentTest = ""
+			currentOutput = make([]string, 0)
+			continue
+		}
+		
+		// 检查包测试成功
+		if matches := okPattern.FindStringSubmatch(trimmed); matches != nil {
+			packageName := matches[2]
+			if !packageSet[packageName] {
+				packageSet[packageName] = true
+				result.Packages = append(result.Packages, packageName)
+			}
+			continue
+		}
+		
+		// 检查包测试失败
+		if matches := failPackagePattern.FindStringSubmatch(trimmed); matches != nil {
+			packageName := matches[1]
+			if !packageSet[packageName] {
+				packageSet[packageName] = true
+				result.Packages = append(result.Packages, packageName)
+			}
+			continue
+		}
+		
+		// 检查编译错误
+		if matches := buildErrorPattern.FindStringSubmatch(trimmed); matches != nil {
+			buildErrors = append(buildErrors, trimmed)
+			continue
+		}
+
+		// 检查是否只是 "FAIL" 行
+		if trimmed == "FAIL" {
+			continue
+		}
+		
+		// 收集当前测试的输出
+		if currentTest != "" {
+			currentOutput = append(currentOutput, line)
+		}
+	}
+	
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading test log: %w", err)
+	}
+	
+	// 处理最后一个测试的输出
+	if currentTest != "" && len(currentOutput) > 0 {
+		if detail, exists := result.TestDetails[currentTest]; exists {
+			detail.Output = strings.Join(currentOutput, "\n")
+		}
+	}
+	
+	// 如果有编译错误，创建一个特殊的失败测试
+	if len(buildErrors) > 0 {
+		buildErrorTest := "BuildError"
+		result.FailedTests++
+		result.FailedTestNames = append(result.FailedTestNames, buildErrorTest)
+		result.TestDetails[buildErrorTest] = &TestDetail{
+			Status: "fail",
+			Output: strings.Join(buildErrors, "\n"),
+			Error:  "Build failed",
+		}
+	}
+	
+	// 计算总测试数
+	result.TotalTests = result.PassedTests + result.FailedTests + result.SkippedTests
+	
+	return result, nil
+}
+
 // ValidateTestLog 验证测试日志格式
 func ValidateTestLog(reader io.Reader) error {
 	scanner := bufio.NewScanner(reader)
@@ -230,6 +428,58 @@ func ValidateTestLog(reader io.Reader) error {
 	// 如果有效JSON行少于总行数的50%，可能不是正确的格式
 	if validLines < lineCount/2 {
 		return fmt.Errorf("file does not appear to be go test -json output (valid JSON lines: %d/%d)", validLines, lineCount)
+	}
+	
+	return nil
+}
+
+// ValidateTestTextLog 验证文本格式测试日志
+func ValidateTestTextLog(reader io.Reader) error {
+	scanner := bufio.NewScanner(reader)
+	lineCount := 0
+	testLines := 0
+	
+	// 文本格式的特征模式
+	runPattern := regexp.MustCompile(`^=== RUN\s+`)
+	passPattern := regexp.MustCompile(`^--- PASS:\s+`)
+	failPattern := regexp.MustCompile(`^--- FAIL:\s+`)
+	okPattern := regexp.MustCompile(`^(ok|PASS)\s+`)
+	failPackagePattern := regexp.MustCompile(`^FAIL\s+`)
+	
+	for scanner.Scan() {
+		lineCount++
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		
+		// 检查是否包含测试相关的模式
+		if runPattern.MatchString(line) ||
+			passPattern.MatchString(line) ||
+			failPattern.MatchString(line) ||
+			okPattern.MatchString(line) ||
+			failPackagePattern.MatchString(line) ||
+			line == "FAIL" {
+			testLines++
+		}
+		
+		// 只检查前100行来判断格式
+		if lineCount >= 100 {
+			break
+		}
+	}
+	
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading file: %w", err)
+	}
+	
+	if lineCount == 0 {
+		return fmt.Errorf("file is empty")
+	}
+	
+	// 如果测试相关行少于总行数的10%，可能不是正确的格式
+	if testLines == 0 {
+		return fmt.Errorf("file does not appear to be go test text output (no test patterns found)")
 	}
 	
 	return nil

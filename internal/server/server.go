@@ -163,8 +163,8 @@ func (s *MCPServer) processTestLog(ctx context.Context, task *task.Task) {
 	}
 	defer file.Close()
 	
-	// 解析测试日志
-	result, err := parser.ParseTestLog(file)
+	// 自动检测文件格式并选择合适的解析器
+	result, err := s.parseTestLogWithAutoDetection(file)
 	if err != nil {
 		task.SetError(fmt.Errorf("failed to parse test log: %w", err))
 		return
@@ -172,6 +172,28 @@ func (s *MCPServer) processTestLog(ctx context.Context, task *task.Task) {
 	
 	// 设置结果
 	task.SetResult(result)
+}
+
+// parseTestLogWithAutoDetection 自动检测文件格式并解析
+func (s *MCPServer) parseTestLogWithAutoDetection(file *os.File) (*parser.TestResult, error) {
+	// 首先尝试检测是否为 JSON 格式
+	file.Seek(0, 0) // 重置文件指针
+	if err := parser.ValidateTestLog(file); err == nil {
+		// 是 JSON 格式，使用 JSON 解析器
+		file.Seek(0, 0) // 重置文件指针
+		return parser.ParseTestLog(file)
+	}
+	
+	// 尝试检测是否为文本格式
+	file.Seek(0, 0) // 重置文件指针
+	if err := parser.ValidateTestTextLog(file); err == nil {
+		// 是文本格式，使用文本解析器
+		file.Seek(0, 0) // 重置文件指针
+		return parser.ParseTestTextLog(file)
+	}
+	
+	// 如果两种格式都不匹配，返回错误
+	return nil, fmt.Errorf("file does not appear to be valid go test output (neither JSON nor text format)")
 }
 
 // handleGetAnalysisResult 获取分析结果
